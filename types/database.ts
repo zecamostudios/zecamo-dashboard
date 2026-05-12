@@ -1,0 +1,472 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          nombre: string | null;
+          rol: "owner" | "admin" | "member";
+          avatar_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          nombre?: string | null;
+          rol?: "owner" | "admin" | "member";
+          avatar_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          nombre?: string | null;
+          rol?: "owner" | "admin" | "member";
+          avatar_url?: string | null;
+        };
+        Relationships: [];
+      };
+      prospectos: {
+        Row: {
+          id: string;
+          negocio: string;
+          nombre_dueno: string | null;
+          nombre_portero: string | null;
+          telefono: string | null;
+          email: string | null;
+          fuente: string | null;
+          fecha_contacto: string | null;
+          volver_a_llamar: string | null;
+          estado: "initiated" | "engaged" | "calendly" | "booked" | "no_interesado" | "agendado";
+          notas: string | null;
+          notas_llamadas: string | null;
+          ultimo_resultado: string | null;
+          asignado_a: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          negocio: string;
+          nombre_dueno?: string | null;
+          nombre_portero?: string | null;
+          telefono?: string | null;
+          email?: string | null;
+          fuente?: string | null;
+          fecha_contacto?: string | null;
+          volver_a_llamar?: string | null;
+          estado?: "initiated" | "engaged" | "calendly" | "booked" | "no_interesado" | "agendado";
+          notas?: string | null;
+          notas_llamadas?: string | null;
+          ultimo_resultado?: string | null;
+          asignado_a?: string | null;
+        };
+        Update: {
+          negocio?: string;
+          nombre_dueno?: string | null;
+          nombre_portero?: string | null;
+          telefono?: string | null;
+          email?: string | null;
+          fuente?: string | null;
+          fecha_contacto?: string | null;
+          volver_a_llamar?: string | null;
+          estado?: "initiated" | "engaged" | "calendly" | "booked" | "no_interesado" | "agendado";
+          notas?: string | null;
+          notas_llamadas?: string | null;
+          ultimo_resultado?: string | null;
+          asignado_a?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      interacciones_prospecto: {
+        Row: {
+          id: string;
+          prospecto_id: string;
+          tipo: string;
+          contenido: string | null;
+          fecha: string;
+          creado_por: string | null;
+        };
+        Insert: {
+          id?: string;
+          prospecto_id: string;
+          tipo: string;
+          contenido?: string | null;
+          fecha?: string;
+          creado_por?: string | null;
+        };
+        Update: {
+          tipo?: string;
+          contenido?: string | null;
+          fecha?: string;
+        };
+        Relationships: [];
+      };
+      clientes: {
+        Row: {
+          id: string;
+          nombre: string;
+          contacto_nombre: string | null;
+          contacto_email: string | null;
+          contacto_tel: string | null;
+          fecha_inicio: string | null;
+          mrr_usd: number;
+          estado: "activo" | "pausado" | "churn";
+          notas: string | null;
+          descripcion_negocio: string | null;
+          problema_principal: string | null;
+          solucion_implementada: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nombre: string;
+          contacto_nombre?: string | null;
+          contacto_email?: string | null;
+          contacto_tel?: string | null;
+          fecha_inicio?: string | null;
+          mrr_usd?: number;
+          estado?: "activo" | "pausado" | "churn";
+          notas?: string | null;
+          descripcion_negocio?: string | null;
+          problema_principal?: string | null;
+          solucion_implementada?: string | null;
+        };
+        Update: {
+          nombre?: string;
+          contacto_nombre?: string | null;
+          contacto_email?: string | null;
+          contacto_tel?: string | null;
+          fecha_inicio?: string | null;
+          mrr_usd?: number;
+          estado?: "activo" | "pausado" | "churn";
+          notas?: string | null;
+          descripcion_negocio?: string | null;
+          problema_principal?: string | null;
+          solucion_implementada?: string | null;
+        };
+        Relationships: [];
+      };
+      proyectos: {
+        Row: {
+          id: string;
+          cliente_id: string;
+          nombre: string;
+          descripcion: string | null;
+          estado: "propuesta" | "en_desarrollo" | "entregado" | "en_soporte" | "cancelado";
+          fecha_inicio: string | null;
+          fecha_entrega: string | null;
+          precio_total_usd: number | null;
+          horas_estimadas: number | null;
+          horas_reales: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          cliente_id: string;
+          nombre: string;
+          descripcion?: string | null;
+          estado?: "propuesta" | "en_desarrollo" | "entregado" | "en_soporte" | "cancelado";
+          fecha_inicio?: string | null;
+          fecha_entrega?: string | null;
+          precio_total_usd?: number | null;
+          horas_estimadas?: number | null;
+          horas_reales?: number;
+        };
+        Update: {
+          cliente_id?: string;
+          nombre?: string;
+          descripcion?: string | null;
+          estado?: "propuesta" | "en_desarrollo" | "entregado" | "en_soporte" | "cancelado";
+          fecha_inicio?: string | null;
+          fecha_entrega?: string | null;
+          precio_total_usd?: number | null;
+          horas_estimadas?: number | null;
+          horas_reales?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      pricing_calculos: {
+        Row: {
+          id: string;
+          nombre_solucion: string;
+          area: string | null;
+          descripcion: string | null;
+          cliente_id: string | null;
+          prospecto_id: string | null;
+          impacto: number | null;
+          esfuerzo: number | null;
+          horas_semana_tarea: number | null;
+          personas_afectadas: number | null;
+          pct_tiempo_ahorrado: number | null;
+          sueldo_mensual_empleado_usd: number | null;
+          horas_semana_empleado: number | null;
+          time_to_value_semanas: number | null;
+          riesgo: number | null;
+          compliance_flag: boolean;
+          fit_estrategico: number | null;
+          horas_desarrollo: number | null;
+          tarifa_hora_usd: number | null;
+          costo_herramientas_mes_usd: number | null;
+          costos_fijos_usd: number | null;
+          costo_hora_empleado_usd: number | null;
+          ahorro_anual_usd: number | null;
+          costo_impl_usd: number | null;
+          valor_anual_cliente_usd: number | null;
+          roi_pct: number | null;
+          roi_score: number | null;
+          esfuerzo_ajustado: number | null;
+          score_final: number | null;
+          clasificacion: string | null;
+          precio_minimo_usd: number | null;
+          precio_recomendado_usd: number | null;
+          precio_agresivo_usd: number | null;
+          ganancia_neta_usd: number | null;
+          margen_pct: number | null;
+          meses_payback_cliente: number | null;
+          mensual_min_usd: number | null;
+          mensual_ideal_usd: number | null;
+          alerta_margen: string | null;
+          alerta_pricing: string | null;
+          created_at: string;
+          updated_at: string;
+          creado_por: string | null;
+        };
+        Insert: {
+          id?: string;
+          nombre_solucion: string;
+          area?: string | null;
+          descripcion?: string | null;
+          cliente_id?: string | null;
+          prospecto_id?: string | null;
+          impacto?: number | null;
+          esfuerzo?: number | null;
+          horas_semana_tarea?: number | null;
+          personas_afectadas?: number | null;
+          pct_tiempo_ahorrado?: number | null;
+          sueldo_mensual_empleado_usd?: number | null;
+          horas_semana_empleado?: number | null;
+          time_to_value_semanas?: number | null;
+          riesgo?: number | null;
+          compliance_flag?: boolean;
+          fit_estrategico?: number | null;
+          horas_desarrollo?: number | null;
+          tarifa_hora_usd?: number | null;
+          costo_herramientas_mes_usd?: number | null;
+          costos_fijos_usd?: number | null;
+          costo_hora_empleado_usd?: number | null;
+          ahorro_anual_usd?: number | null;
+          costo_impl_usd?: number | null;
+          valor_anual_cliente_usd?: number | null;
+          roi_pct?: number | null;
+          roi_score?: number | null;
+          esfuerzo_ajustado?: number | null;
+          score_final?: number | null;
+          clasificacion?: string | null;
+          precio_minimo_usd?: number | null;
+          precio_recomendado_usd?: number | null;
+          precio_agresivo_usd?: number | null;
+          ganancia_neta_usd?: number | null;
+          margen_pct?: number | null;
+          meses_payback_cliente?: number | null;
+          mensual_min_usd?: number | null;
+          mensual_ideal_usd?: number | null;
+          alerta_margen?: string | null;
+          alerta_pricing?: string | null;
+          creado_por?: string | null;
+        };
+        Update: {
+          nombre_solucion?: string;
+          area?: string | null;
+          descripcion?: string | null;
+          cliente_id?: string | null;
+          prospecto_id?: string | null;
+          impacto?: number | null;
+          esfuerzo?: number | null;
+          horas_semana_tarea?: number | null;
+          personas_afectadas?: number | null;
+          pct_tiempo_ahorrado?: number | null;
+          sueldo_mensual_empleado_usd?: number | null;
+          horas_semana_empleado?: number | null;
+          time_to_value_semanas?: number | null;
+          riesgo?: number | null;
+          compliance_flag?: boolean;
+          fit_estrategico?: number | null;
+          horas_desarrollo?: number | null;
+          tarifa_hora_usd?: number | null;
+          costo_herramientas_mes_usd?: number | null;
+          costos_fijos_usd?: number | null;
+          costo_hora_empleado_usd?: number | null;
+          ahorro_anual_usd?: number | null;
+          costo_impl_usd?: number | null;
+          valor_anual_cliente_usd?: number | null;
+          roi_pct?: number | null;
+          roi_score?: number | null;
+          esfuerzo_ajustado?: number | null;
+          score_final?: number | null;
+          clasificacion?: string | null;
+          precio_minimo_usd?: number | null;
+          precio_recomendado_usd?: number | null;
+          precio_agresivo_usd?: number | null;
+          ganancia_neta_usd?: number | null;
+          margen_pct?: number | null;
+          meses_payback_cliente?: number | null;
+          mensual_min_usd?: number | null;
+          mensual_ideal_usd?: number | null;
+          alerta_margen?: string | null;
+          alerta_pricing?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      transacciones: {
+        Row: {
+          id: string;
+          fecha: string;
+          tipo: "ingreso" | "egreso";
+          categoria: string | null;
+          descripcion: string | null;
+          monto_usd: number;
+          cliente_id: string | null;
+          proyecto_id: string | null;
+          metodo_pago: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          fecha: string;
+          tipo: "ingreso" | "egreso";
+          categoria?: string | null;
+          descripcion?: string | null;
+          monto_usd: number;
+          cliente_id?: string | null;
+          proyecto_id?: string | null;
+          metodo_pago?: string | null;
+        };
+        Update: {
+          fecha?: string;
+          tipo?: "ingreso" | "egreso";
+          categoria?: string | null;
+          descripcion?: string | null;
+          monto_usd?: number;
+          cliente_id?: string | null;
+          proyecto_id?: string | null;
+          metodo_pago?: string | null;
+        };
+        Relationships: [];
+      };
+      outbound_campanas: {
+        Row: {
+          id: string;
+          nombre: string;
+          canal: string | null;
+          fecha_inicio: string | null;
+          fecha_fin: string | null;
+          notas: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nombre: string;
+          canal?: string | null;
+          fecha_inicio?: string | null;
+          fecha_fin?: string | null;
+          notas?: string | null;
+        };
+        Update: {
+          nombre?: string;
+          canal?: string | null;
+          fecha_inicio?: string | null;
+          fecha_fin?: string | null;
+          notas?: string | null;
+        };
+        Relationships: [];
+      };
+      outbound_envios: {
+        Row: {
+          id: string;
+          campana_id: string;
+          prospecto_id: string | null;
+          fecha: string;
+          estado: string | null;
+          asunto: string | null;
+          contenido: string | null;
+        };
+        Insert: {
+          id?: string;
+          campana_id: string;
+          prospecto_id?: string | null;
+          fecha?: string;
+          estado?: string | null;
+          asunto?: string | null;
+          contenido?: string | null;
+        };
+        Update: {
+          estado?: string | null;
+          asunto?: string | null;
+          contenido?: string | null;
+        };
+        Relationships: [];
+      };
+      tareas: {
+        Row: {
+          id: string;
+          titulo: string;
+          descripcion: string | null;
+          asignado_a: string | null;
+          prioridad: "baja" | "media" | "alta" | "urgente";
+          estado: "todo" | "doing" | "review" | "done";
+          fecha_limite: string | null;
+          proyecto_id: string | null;
+          cliente_id: string | null;
+          created_at: string;
+          updated_at: string;
+          creado_por: string | null;
+        };
+        Insert: {
+          id?: string;
+          titulo: string;
+          descripcion?: string | null;
+          asignado_a?: string | null;
+          prioridad?: "baja" | "media" | "alta" | "urgente";
+          estado?: "todo" | "doing" | "review" | "done";
+          fecha_limite?: string | null;
+          proyecto_id?: string | null;
+          cliente_id?: string | null;
+          creado_por?: string | null;
+        };
+        Update: {
+          titulo?: string;
+          descripcion?: string | null;
+          asignado_a?: string | null;
+          prioridad?: "baja" | "media" | "alta" | "urgente";
+          estado?: "todo" | "doing" | "review" | "done";
+          fecha_limite?: string | null;
+          proyecto_id?: string | null;
+          cliente_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+}
+
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Prospecto = Database["public"]["Tables"]["prospectos"]["Row"];
+export type InteraccionProspecto = Database["public"]["Tables"]["interacciones_prospecto"]["Row"];
+export type Cliente = Database["public"]["Tables"]["clientes"]["Row"];
+export type Proyecto = Database["public"]["Tables"]["proyectos"]["Row"];
+export type PricingCalculo = Database["public"]["Tables"]["pricing_calculos"]["Row"];
+export type Transaccion = Database["public"]["Tables"]["transacciones"]["Row"];
+export type OutboundCampana = Database["public"]["Tables"]["outbound_campanas"]["Row"];
+export type OutboundEnvio = Database["public"]["Tables"]["outbound_envios"]["Row"];
+export type Tarea = Database["public"]["Tables"]["tareas"]["Row"];
