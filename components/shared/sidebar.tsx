@@ -59,7 +59,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2">
           <div
             className="size-7 rounded-md flex items-center justify-center text-white text-sm font-bold shrink-0"
-            style={{ background: "#ff6a3d" }}
+            style={{ background: "#4d8ef5" }}
           >
             Z
           </div>
@@ -79,7 +79,7 @@ export function Sidebar() {
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
               isActive(href)
-                ? "bg-[#ff6a3d15] text-[#ff6a3d]"
+                ? "bg-[#4d8ef520] text-[#4d8ef5]"
                 : "text-[#777] hover:bg-[#1a1a1a] hover:text-[#ccc]"
             )}
           >
