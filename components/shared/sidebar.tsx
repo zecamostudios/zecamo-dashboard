@@ -55,22 +55,32 @@ export function Sidebar() {
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-5 border-b border-slate-700">
-        <span className="text-white font-bold text-xl tracking-tight">Zecamo</span>
-        <span className="text-slate-400 text-xs block">Studios</span>
+      <div className="px-5 py-5 border-b border-[#1f1f1f]">
+        <div className="flex items-center gap-2">
+          <div
+            className="size-7 rounded-md flex items-center justify-center text-white text-sm font-bold shrink-0"
+            style={{ background: "#ff6a3d" }}
+          >
+            Z
+          </div>
+          <div>
+            <div className="text-white font-semibold text-sm leading-none">Zecamo Studios</div>
+            <div className="text-[#555] text-[10px] mt-0.5">dashboard · v1</div>
+          </div>
+        </div>
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
               isActive(href)
-                ? "bg-primary text-white"
-                : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                ? "bg-[#ff6a3d15] text-[#ff6a3d]"
+                : "text-[#777] hover:bg-[#1a1a1a] hover:text-[#ccc]"
             )}
           >
             <Icon className="size-4 shrink-0" />
@@ -79,10 +89,10 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-2 py-4 border-t border-slate-700">
+      <div className="px-3 py-4 border-t border-[#1f1f1f]">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-[#555] hover:bg-[#1a1a1a] hover:text-[#ccc] transition-colors w-full"
         >
           <LogOut className="size-4 shrink-0" />
           Salir
@@ -95,7 +105,8 @@ export function Sidebar() {
     <>
       {/* Mobile toggle */}
       <button
-        className="fixed top-4 left-4 z-50 md:hidden bg-slate-900 text-white p-2 rounded-lg shadow-lg"
+        className="fixed top-4 left-4 z-50 md:hidden text-[#ccc] p-2 rounded-lg"
+        style={{ background: "#111" }}
         onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -104,7 +115,7 @@ export function Sidebar() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -112,15 +123,19 @@ export function Sidebar() {
       {/* Mobile sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-60 bg-slate-900 transition-transform duration-200 md:hidden",
+          "fixed inset-y-0 left-0 z-40 w-56 transition-transform duration-200 md:hidden border-r border-[#1f1f1f]",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        style={{ background: "#0f0f0f" }}
       >
         <NavContent />
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-60 bg-slate-900 min-h-screen shrink-0">
+      <aside
+        className="hidden md:flex flex-col w-56 min-h-screen shrink-0 border-r border-[#1f1f1f]"
+        style={{ background: "#0f0f0f" }}
+      >
         <NavContent />
       </aside>
     </>
