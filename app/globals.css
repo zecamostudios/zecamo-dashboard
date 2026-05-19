@@ -553,3 +553,116 @@
   .zec-section-title { font-size: 24px; }
 }
 
+/* ── Edit page ─────────────────────────────────── */
+.zec-edit-page {
+  padding: 40px;
+  max-width: 760px;
+}
+.zec-edit-header {
+  margin-bottom: 32px;
+}
+.zec-edit-back {
+  font-size: 13px;
+  color: var(--zec-text-2);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+.zec-edit-back:hover { color: var(--zec-text-1); }
+.zec-edit-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--zec-text-1);
+}
+.zec-edit-title span {
+  color: var(--zec-accent);
+  font-weight: 400;
+  font-size: 16px;
+}
+.zec-edit-card {
+  background: var(--zec-bg-elev-1);
+  border: 1px solid var(--zec-border);
+  border-radius: var(--zec-radius);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.zec-edit-field { display: flex; flex-direction: column; gap: 6px; }
+.zec-edit-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--zec-text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.zec-edit-input {
+  background: var(--zec-bg-elev-2);
+  border: 1px solid var(--zec-border);
+  border-radius: var(--zec-radius-sm);
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--zec-text-1);
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.zec-edit-input:focus { border-color: var(--zec-accent); }
+.zec-edit-textarea {
+  background: var(--zec-bg-elev-2);
+  border: 1px solid var(--zec-border);
+  border-radius: var(--zec-radius-sm);
+  padding: 12px;
+  font-size: 13px;
+  color: var(--zec-text-1);
+  width: 100%;
+  outline: none;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+.zec-edit-textarea:focus { border-color: var(--zec-accent); }
+.zec-edit-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 8px;
+}
+.zec-edit-btn-save {
+  background: var(--zec-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--zec-radius-sm);
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.zec-edit-btn-save:hover { opacity: 0.85; }
+.zec-edit-btn-cancel {
+  color: var(--zec-text-2);
+  font-size: 14px;
+  padding: 9px 16px;
+  text-decoration: none;
+  border-radius: var(--zec-radius-sm);
+  transition: color 0.15s;
+}
+.zec-edit-btn-cancel:hover { color: var(--zec-text-1); }
+.zec-edit-ref-note {
+  color: var(--zec-text-2);
+  font-size: 14px;
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.zec-edit-ref-note strong { color: var(--zec-text-1); }
+.zec-edit-ref-note code {
+  background: var(--zec-bg-elev-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--zec-accent);
+}
+
