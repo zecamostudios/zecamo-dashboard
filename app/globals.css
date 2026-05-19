@@ -544,13 +544,127 @@
 }
 .zec-roadmap-foot strong { color: var(--zec-text-1); font-weight: 600; }
 
+/* ── Mobile top bar ─────────────────────────── */
+.zec-mobile-bar {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 52px;
+  background: var(--zec-bg-elev-1);
+  border-bottom: 1px solid var(--zec-border);
+  padding: 0 16px;
+  align-items: center;
+  gap: 10px;
+}
+
+.zec-hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid var(--zec-border);
+  border-radius: var(--zec-radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.zec-hamburger span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: var(--zec-text-2);
+  border-radius: 2px;
+}
+
+.zec-mobile-close-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--zec-text-2);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.zec-mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 150;
+  backdrop-filter: blur(2px);
+}
+
 /* ── Responsive ─────────────────────────────── */
 @media (max-width: 768px) {
-  .zec-sidebar { display: none; }
-  .zec-manual-main { padding: 24px 16px; }
-  .zec-service-body { grid-template-columns: 1fr; }
-  .zec-service-meta { grid-template-columns: 1fr; }
+  /* Show mobile bar */
+  .zec-mobile-bar { display: flex; }
+  .zec-mobile-overlay { display: block; }
+  .zec-mobile-close-btn { display: block; }
+
+  /* Sidebar becomes a slide-in drawer */
+  .zec-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 280px;
+    min-height: 100%;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+  .zec-sidebar--mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Main content: account for fixed top bar, smaller padding */
+  .zec-manual-main {
+    padding: 72px 16px 32px;
+  }
+
+  /* Section title */
   .zec-section-title { font-size: 24px; }
+  .zec-section-lede  { font-size: 14px; }
+
+  /* Service cards: single column */
+  .zec-service-body { grid-template-columns: 1fr; }
+  .zec-service-meta { grid-template-columns: 1fr 1fr; }
+  .zec-service-cell:nth-child(2n) { border-right: 1px solid var(--zec-border); }
+  .zec-service-cell:nth-child(odd):last-child { border-right: none; }
+
+  /* Tables: horizontal scroll */
+  .zec-prose table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  /* Roadmap: single column */
+  .zec-blocks > .zec-block-wrap [class*="grid-cols"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Pricing: smaller amount */
+  .zec-price-amount { font-size: 26px; }
+
+  /* Pipeline: tighten gap */
+  .zec-pipeline-step { gap: 10px; }
+  .zec-pipeline-num  { font-size: 18px; min-width: 28px; }
+
+  /* Edit page */
+  .zec-edit-page { padding: 72px 16px 32px; }
 }
 
 /* ── Edit page ─────────────────────────────────── */

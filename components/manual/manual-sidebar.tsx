@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
 const sections = [
   { slug: "manifiesto", label: "Manifiesto", num: "01", grp: "operacion" },
   { slug: "lineas-servicio", label: "Líneas de servicio", num: "02", grp: "operacion" },
@@ -18,6 +19,7 @@ export function ManualSidebar({ currentSlug }: { currentSlug?: string } = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const slug = currentSlug ?? pathname.split("/").pop() ?? "";
 
@@ -30,6 +32,15 @@ export function ManualSidebar({ currentSlug }: { currentSlug?: string } = {}) {
       document.documentElement.setAttribute("data-zec-theme", "dark");
     }
   }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // Prevent body scroll when menu is open
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
@@ -69,14 +80,21 @@ export function ManualSidebar({ currentSlug }: { currentSlug?: string } = {}) {
   const operacion = sections.filter((s) => s.grp === "operacion");
   const negocio = sections.filter((s) => s.grp === "negocio");
 
-  return (
-    <aside className="zec-sidebar">
+  const navContent = (
+    <>
       <div className="zec-brand">
         <div className="zec-brand-mark">Z</div>
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="zec-brand-name">Zecamo Studios</div>
           <div className="zec-brand-sub">manual / v1.0</div>
         </div>
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="zec-mobile-close-btn"
+          aria-label="Cerrar menú"
+        >
+          ✕
+        </button>
       </div>
 
       <div className="zec-sidebar-meta">
@@ -117,6 +135,33 @@ export function ManualSidebar({ currentSlug }: { currentSlug?: string } = {}) {
           {theme === "dark" ? "☀ Light" : "☽ Dark"}
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile top bar */}
+      <div className="zec-mobile-bar">
+        <div className="zec-brand-mark" style={{ width: 32, height: 32, fontSize: 16 }}>Z</div>
+        <span className="zec-brand-name" style={{ flex: 1 }}>Zecamo Studios</span>
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="zec-hamburger"
+          aria-label="Abrir menú"
+        >
+          <span /><span /><span />
+        </button>
+      </div>
+
+      {/* Overlay */}
+      {mobileOpen && (
+        <div className="zec-mobile-overlay" onClick={() => setMobileOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`zec-sidebar${mobileOpen ? " zec-sidebar--mobile-open" : ""}`}>
+        {navContent}
+      </aside>
+    </>
   );
 }
