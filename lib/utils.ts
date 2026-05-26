@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function fmtN(n: number): string {
+  return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
+
+export function fmtUsd(n: number): string {
+  return `$${fmtN(n)}`;
+}
+
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "—";
   return new Intl.DateTimeFormat("es-AR", {

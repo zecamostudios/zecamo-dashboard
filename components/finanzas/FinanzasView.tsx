@@ -1,0 +1,252 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import {
+  DollarSign,
+  Target,
+  TrendingUp,
+  ArrowUp,
+  ArrowDown,
+  ExternalLink,
+  Plus,
+  BarChart3,
+  Sparkles,
+  Wallet,
+  Filter,
+  ArrowRight,
+  Clock,
+} from "lucide-react";
+import { CLIENTS, FINANCE, TRANSACTIONS, BY_LINE } from "@/lib/mock-data";
+import { fmtN } from "@/lib/utils";
+import { PageHead } from "@/components/ui-zecamo/PageHead";
+import { Button } from "@/components/ui-zecamo/Button";
+import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
+import { Tabs } from "@/components/ui-zecamo/Tabs";
+import { AreaChart } from "@/components/charts/AreaChart";
+import { MrrCard } from "./MrrCard";
+import { TransactionRow } from "./TransactionRow";
+import { LineDistribution } from "./LineDistribution";
+
+type Currency = "USD" | "ARS";
+type Range = "Mes" | "3M" | "6M" | "YTD";
+
+const RATE = 1180;
+// TODO: Conectar Supabase (tabla `fx_rates`) y reemplazar constante
+
+export function FinanzasView() {
+  const [currency, setCurrency] = useState<Currency>("USD");
+  const [range, setRange] = useState<Range>("6M");
+
+  const conv = (n: number) => (currency === "USD" ? n : Math.round(n * RATE));
+  const symbol = currency;
+  const fmt = (n: number) => `${symbol} ${fmtN(conv(n))}`;
+
+  // TODO: Conectar Supabase tabla `transactions` (vista agregada)
+  const totalIn = useMemo(() => FINANCE.reduce((s, d) => s + d.in, 0), []);
+  const totalOut = useMemo(() => FINANCE.reduce((s, d) => s + d.out, 0), []);
+  const netto = totalIn - totalOut;
+  const margin = Math.round((netto / totalIn) * 100);
+
+  const currentMrr = CLIENTS.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
+  const targetMrr = 8500;
+  const growth = 16.7;
+
+  const upcoming: { c: string; d: string; a: number }[] = [
+    { c: "Salud Norte", d: "22 Jun", a: 1500 },
+    { c: "Café Atlas", d: "22 Jun", a: 1200 },
+    { c: "Inmobiliaria Casas", d: "22 Jun", a: 1800 },
+    { c: "Estudio Mendoza", d: "22 Jun", a: 850 },
+    { c: "Clínica Vet. Sol", d: "22 Jun", a: 1100 },
+  ];
+
+  void range; // used for UI filter — data filtering TODO: Supabase
+
+  return (
+    <>
+      <PageHead
+        title="Finanzas"
+        subtitle="MRR, ingresos, egresos · vista consolidada"
+        actions={
+          <>
+            <Tabs
+              value={currency}
+              onChange={(v) => setCurrency(v as Currency)}
+              tabs={[
+                { value: "USD", label: "USD" },
+                { value: "ARS", label: "ARS" },
+              ]}
+            />
+            <Tabs
+              value={range}
+              onChange={(v) => setRange(v as Range)}
+              tabs={(["Mes", "3M", "6M", "YTD"] as const).map((r) => ({ value: r, label: r }))}
+            />
+            <Button><ExternalLink size={12} />Exportar</Button>
+            <Button variant="primary"><Plus size={14} />Nueva transacción</Button>
+          </>
+        }
+      />
+
+      {/* KPIs */}
+      <div className="grid grid-cols-4 gap-[14px] mb-[18px] max-[1100px]:grid-cols-2 max-[640px]:grid-cols-1">
+        <MrrCard
+          symbol={symbol}
+          value={conv(currentMrr)}
+          growth={growth}
+          spark={[2400, 2900, 3200, 3600, 4100, 4400, currentMrr]}
+        />
+        <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] font-medium">MRR objetivo M3</div>
+            <div className="w-7 h-7 rounded-lg bg-white/[0.04] grid place-items-center text-[var(--color-text-muted)]"><Target size={15} /></div>
+          </div>
+          <div className="font-[family-name:var(--font-display)] text-[28px] font-medium leading-none tracking-tight">
+            {symbol} {fmtN(conv(targetMrr))}
+          </div>
+          <div className="flex items-center gap-2 mt-3 text-[11.5px]">
+            <span className="font-mono text-[var(--color-text-muted)]">{Math.round((currentMrr / targetMrr) * 100)}% del objetivo</span>
+            <span className="text-[var(--color-text-dim)]">en 3 meses</span>
+          </div>
+          <div className="bg-white/[0.05] rounded-full overflow-hidden h-1.5 mt-[6px]">
+            <div className="h-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] shadow-[0_0_6px_var(--color-glow)]"
+              style={{ width: `${(currentMrr / targetMrr) * 100}%` }} />
+          </div>
+        </div>
+        <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] font-medium">Ingresos 6M</div>
+            <div className="w-7 h-7 rounded-lg bg-white/[0.04] grid place-items-center text-[var(--color-text-muted)]"><TrendingUp size={15} /></div>
+          </div>
+          <div className="font-[family-name:var(--font-display)] text-[28px] font-medium leading-none tracking-tight">
+            <span className="text-[var(--color-text-muted)] text-[18px] mr-0.5">{symbol}</span>{fmtN(conv(totalIn))}
+          </div>
+          <div className="flex items-center gap-2 mt-3 text-[11.5px]">
+            <span className="font-mono text-[var(--color-success)] inline-flex items-center gap-0.5"><ArrowUp size={10} />+24%</span>
+            <span className="text-[var(--color-text-dim)]">vs período anterior</span>
+          </div>
+        </div>
+        <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] font-medium">Egresos 6M</div>
+            <div className="w-7 h-7 rounded-lg bg-white/[0.04] grid place-items-center text-[var(--color-text-muted)]"><ArrowDown size={15} /></div>
+          </div>
+          <div className="font-[family-name:var(--font-display)] text-[28px] font-medium leading-none tracking-tight">
+            <span className="text-[var(--color-text-muted)] text-[18px] mr-0.5">{symbol}</span>{fmtN(conv(totalOut))}
+          </div>
+          <div className="flex items-center gap-2 mt-3 text-[11.5px]">
+            <span className="font-mono text-[var(--color-success)] inline-flex items-center gap-0.5"><ArrowUp size={10} />+8%</span>
+            <span className="text-[var(--color-text-dim)]">controlado</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart + por línea */}
+      <div className="grid grid-cols-12 gap-[14px] mb-[14px]">
+        <Card className="col-span-8 max-[1100px]:col-span-12">
+          <CardHead>
+            <CardTitle big icon={<BarChart3 size={16} />}>Flujo · ingresos vs egresos</CardTitle>
+            <span className="font-mono text-[11.5px] text-[var(--color-text-muted)]">
+              Neto +{fmt(netto)} · margen {margin}%
+            </span>
+          </CardHead>
+          <div className="flex gap-6 mb-3 flex-wrap">
+            <Summary label="Ingresos" value={fmt(totalIn)} dotColor="var(--color-primary-hover)" />
+            <Summary label="Egresos" value={fmt(totalOut)} dotColor="var(--color-purple)" />
+            <Summary label="Neto" value={`+${fmt(netto)}`} valueColor="var(--color-success)" />
+            <Summary label="Margen" value={`${margin}%`} />
+          </div>
+          <AreaChart data={FINANCE} height={260} />
+        </Card>
+
+        <Card className="col-span-4 max-[1100px]:col-span-12">
+          <CardHead>
+            <CardTitle big icon={<Sparkles size={16} />}>Por línea de servicio</CardTitle>
+          </CardHead>
+          <LineDistribution items={BY_LINE} totalFormatter={fmt} />
+        </Card>
+      </div>
+
+      {/* Transacciones */}
+      <div className="grid grid-cols-12 gap-[14px]">
+        <Card className="col-span-8 p-0 max-[1100px]:col-span-12">
+          <div className="p-[22px_22px_0]">
+            <CardHead>
+              <CardTitle big icon={<Wallet size={16} />}>Transacciones recientes</CardTitle>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" className="px-2 py-1"><Filter size={12} />Filtrar</Button>
+                <Button variant="ghost" className="px-2 py-1">Ver todas <ArrowRight size={12} /></Button>
+              </div>
+            </CardHead>
+          </div>
+          <div className="overflow-x-auto px-[22px] pb-[22px]">
+            <table className="w-full text-[13px]">
+              <thead className="text-left text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] border-b border-[var(--color-border)]">
+                <tr>
+                  <th className="py-2 font-medium">Fecha</th>
+                  <th className="py-2 font-medium">Concepto</th>
+                  <th className="py-2 font-medium">Línea</th>
+                  <th className="py-2 font-medium">Owner</th>
+                  <th className="py-2 font-medium">Tipo</th>
+                  <th className="py-2 font-medium text-right">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {TRANSACTIONS.map((tx, i) => (
+                  <TransactionRow key={i} tx={tx} format={fmt} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <div className="col-span-4 flex flex-col gap-[14px] max-[1100px]:col-span-12">
+          <Card>
+            <CardHead>
+              <CardTitle big icon={<Clock size={16} />}>Próximos cobros</CardTitle>
+            </CardHead>
+            {upcoming.map((p, i) => (
+              <div key={i} className="flex justify-between items-center py-[9px] border-b border-[var(--color-border)] last:border-b-0">
+                <div>
+                  <div className="text-[13px]">{p.c}</div>
+                  <div className="font-mono text-[10.5px] text-[var(--color-text-muted)]">{p.d}</div>
+                </div>
+                <span className="font-mono text-[12px] font-semibold text-[var(--color-success)]">+{fmt(p.a)}</span>
+              </div>
+            ))}
+            <div className="pt-[10px] flex justify-between text-[12.5px] font-semibold">
+              <span>Total esperado</span>
+              <span className="font-mono text-[var(--color-success)]">{fmt(6450)}</span>
+            </div>
+          </Card>
+
+          <Card glow>
+            <CardHead>
+              <CardTitle big icon={<Sparkles size={16} />}>
+                <span className="text-[var(--color-primary-hover)]">Insight</span>
+              </CardTitle>
+            </CardHead>
+            <p className="text-[13px] text-[var(--color-text-muted)] leading-relaxed">
+              Si mantenés el crecimiento del {growth}% mensual, llegás al MRR objetivo en{" "}
+              <b className="text-[var(--color-primary-hover)]">~9 semanas</b>.
+            </p>
+            <div className="mt-3.5 px-3 py-2.5 bg-[rgba(34,197,139,0.08)] border border-[rgba(34,197,139,0.2)] rounded-[10px] text-[11.5px] text-[var(--color-text-muted)]">
+              <b className="text-[var(--color-success)]">Recomendación:</b> el costo Ops es 3.7% de ingresos. Hay margen para invertir en herramientas.
+            </div>
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Summary({ label, value, dotColor, valueColor }: { label: string; value: string; dotColor?: string; valueColor?: string }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+        {dotColor && <span className="w-2 h-2 rounded-[2px]" style={{ background: dotColor, boxShadow: `0 0 6px ${dotColor}` }} />}
+        {label}
+      </div>
+      <div className="font-mono text-[14px] font-semibold mt-1" style={{ color: valueColor ?? "var(--color-text)" }}>{value}</div>
+    </div>
+  );
+}
