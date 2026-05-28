@@ -25,14 +25,21 @@ import { AreaChart } from "@/components/charts/AreaChart";
 import { MrrCard } from "./MrrCard";
 import { TransactionRow } from "./TransactionRow";
 import { LineDistribution } from "./LineDistribution";
+import type { Client, Transaction, FinancePoint, ByLine } from "@/lib/types";
 
 type Currency = "USD" | "ARS";
 type Range = "Mes" | "3M" | "6M" | "YTD";
 
 const RATE = 1180;
-// TODO: Conectar Supabase (tabla `fx_rates`) y reemplazar constante
 
-export function FinanzasView() {
+interface FinanzasViewProps {
+  initialClients?: Client[];
+  initialTransactions?: Transaction[];
+  initialFinance?: FinancePoint[];
+  initialByLine?: ByLine[];
+}
+
+export function FinanzasView({ initialClients, initialTransactions, initialFinance, initialByLine }: FinanzasViewProps) {
   const [currency, setCurrency] = useState<Currency>("USD");
   const [range, setRange] = useState<Range>("6M");
 
@@ -40,13 +47,17 @@ export function FinanzasView() {
   const symbol = currency;
   const fmt = (n: number) => `${symbol} ${fmtN(conv(n))}`;
 
-  // TODO: Conectar Supabase tabla `transactions` (vista agregada)
-  const totalIn = useMemo(() => FINANCE.reduce((s, d) => s + d.in, 0), []);
-  const totalOut = useMemo(() => FINANCE.reduce((s, d) => s + d.out, 0), []);
-  const netto = totalIn - totalOut;
-  const margin = Math.round((netto / totalIn) * 100);
+  const allClients = initialClients ?? CLIENTS;
+  const allTransactions = initialTransactions ?? TRANSACTIONS;
+  const allFinance = initialFinance ?? FINANCE;
+  const allByLine = initialByLine ?? BY_LINE;
 
-  const currentMrr = CLIENTS.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
+  const totalIn = useMemo(() => allFinance.reduce((s, d) => s + d.in, 0), [allFinance]);
+  const totalOut = useMemo(() => allFinance.reduce((s, d) => s + d.out, 0), [allFinance]);
+  const netto = totalIn - totalOut;
+  const margin = totalIn > 0 ? Math.round((netto / totalIn) * 100) : 0;
+
+  const currentMrr = allClients.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
   const targetMrr = 8500;
   const growth = 16.7;
 
@@ -154,14 +165,14 @@ export function FinanzasView() {
             <Summary label="Neto" value={`+${fmt(netto)}`} valueColor="var(--color-success)" />
             <Summary label="Margen" value={`${margin}%`} />
           </div>
-          <AreaChart data={FINANCE} height={260} />
+          <AreaChart data={allFinance} height={260} />
         </Card>
 
         <Card className="col-span-4 max-[1100px]:col-span-12">
           <CardHead>
             <CardTitle big icon={<Sparkles size={16} />}>Por línea de servicio</CardTitle>
           </CardHead>
-          <LineDistribution items={BY_LINE} totalFormatter={fmt} />
+          <LineDistribution items={allByLine} totalFormatter={fmt} />
         </Card>
       </div>
 
@@ -190,7 +201,7 @@ export function FinanzasView() {
                 </tr>
               </thead>
               <tbody>
-                {TRANSACTIONS.map((tx, i) => (
+                {allTransactions.map((tx, i) => (
                   <TransactionRow key={i} tx={tx} format={fmt} />
                 ))}
               </tbody>

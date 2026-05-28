@@ -12,7 +12,11 @@ import { ClientesTable } from "./ClientesTable";
 import { ClienteDetail } from "./ClienteDetail";
 import type { Client, ClientStatus, ServiceLine } from "@/lib/types";
 
-export function ClientesView() {
+interface ClientesViewProps {
+  initialClients?: Client[];
+}
+
+export function ClientesView({ initialClients }: ClientesViewProps) {
   const [selected, setSelected] = useState<Client | null>(null);
   const [lineFilter, setLineFilter] = useState<ServiceLine | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ClientStatus | "all">("all");
@@ -22,16 +26,17 @@ export function ClientesView() {
     return <ClienteDetail client={selected} onBack={() => setSelected(null)} />;
   }
 
-  // TODO: reemplazar por query a Supabase tabla `clients`
-  const filtered = CLIENTS.filter(
+  const allClients = initialClients ?? CLIENTS;
+
+  const filtered = allClients.filter(
     (c) =>
       (lineFilter === "all" || c.line === lineFilter) &&
       (statusFilter === "all" || c.status === statusFilter) &&
       (!search || c.name.toLowerCase().includes(search.toLowerCase())),
   );
 
-  const active = CLIENTS.filter((c) => c.status === "active").length;
-  const totalMrr = CLIENTS.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
+  const active = allClients.filter((c) => c.status === "active").length;
+  const totalMrr = allClients.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
   const STATUSES: { id: ClientStatus | "all"; l: string }[] = [
     { id: "all", l: "Todos" },
     { id: "active", l: "Activos" },

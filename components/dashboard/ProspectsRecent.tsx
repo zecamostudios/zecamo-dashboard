@@ -5,10 +5,14 @@ import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
 import { Pill } from "@/components/ui-zecamo/Pill";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { Button } from "@/components/ui-zecamo/Button";
+import type { Prospect } from "@/lib/types";
 
-export function ProspectsRecent() {
-  // TODO: reemplazar por query a Supabase tabla `prospects` (order by created_at desc limit 5)
-  const prospects = PROSPECTS.slice(0, 5);
+interface ProspectsRecentProps {
+  prospects?: Prospect[];
+}
+
+export function ProspectsRecent({ prospects: initialProspects }: ProspectsRecentProps) {
+  const prospects = (initialProspects ?? PROSPECTS).slice(0, 5);
 
   return (
     <Card>

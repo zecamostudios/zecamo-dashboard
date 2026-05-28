@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { Plus, Inbox, Send, Calendar, X } from "lucide-react";
 import { OWNERS, OUTBOUND_MESSAGES, TEMPLATES } from "@/lib/mock-data";
-import type { OutboundStatus, OwnerId } from "@/lib/types";
+import type { OutboundMessage, OutboundStatus, OwnerId, Template } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
 import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
@@ -13,13 +13,20 @@ import { LeadTable } from "./LeadTable";
 
 const FUNNEL_ICONS = { Send, Inbox, Calendar, X } as const;
 
-export function OutboundView() {
+interface OutboundViewProps {
+  initialMessages?: OutboundMessage[];
+  initialTemplates?: Template[];
+}
+
+export function OutboundView({ initialMessages, initialTemplates }: OutboundViewProps) {
   const [ownerFilter, setOwnerFilter] = useState<OwnerId | "all">("all");
   const [statusFilter, setStatusFilter] = useState<OutboundStatus | "all">("all");
   const [showTemplates, setShowTemplates] = useState(false);
 
-  // TODO: Conectar Supabase tabla `outbound_messages`
-  const filtered = OUTBOUND_MESSAGES.filter(
+  const allMessages = initialMessages ?? OUTBOUND_MESSAGES;
+  const allTemplates = initialTemplates ?? TEMPLATES;
+
+  const filtered = allMessages.filter(
     (m) =>
       (ownerFilter === "all" || m.owner === ownerFilter) &&
       (statusFilter === "all" || m.status === statusFilter),
@@ -28,7 +35,7 @@ export function OutboundView() {
   const byOwner = useMemo(
     () =>
       OWNERS.map((o) => {
-        const msgs = OUTBOUND_MESSAGES.filter((m) => m.owner === o.id);
+        const msgs = allMessages.filter((m) => m.owner === o.id);
         const replied = msgs.filter((m) => m.status === "respondio" || m.status === "agendado").length;
         const booked = msgs.filter((m) => m.status === "agendado").length;
         return {
@@ -40,13 +47,13 @@ export function OutboundView() {
           bookRate: msgs.length ? booked / msgs.length : 0,
         };
       }),
-    [],
+    [allMessages],
   );
 
-  const total = OUTBOUND_MESSAGES.length;
-  const responded = OUTBOUND_MESSAGES.filter((m) => m.status === "respondio" || m.status === "agendado").length;
-  const booked = OUTBOUND_MESSAGES.filter((m) => m.status === "agendado").length;
-  const noResp = OUTBOUND_MESSAGES.filter((m) => m.status === "no_resp").length;
+  const total = allMessages.length;
+  const responded = allMessages.filter((m) => m.status === "respondio" || m.status === "agendado").length;
+  const booked = allMessages.filter((m) => m.status === "agendado").length;
+  const noResp = allMessages.filter((m) => m.status === "no_resp").length;
 
   return (
     <>
@@ -125,7 +132,7 @@ export function OutboundView() {
       </div>
 
       {showTemplates ? (
-        <CampaignList templates={TEMPLATES} />
+        <CampaignList templates={allTemplates} />
       ) : (
         <>
           <OutboundFilters

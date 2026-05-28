@@ -3,6 +3,7 @@ import { BY_LINE } from "@/lib/mock-data";
 import { Pill } from "@/components/ui-zecamo/Pill";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { fmtN } from "@/lib/utils";
+import type { ByLine } from "@/lib/types";
 
 const LINE_GRADIENT: Record<string, string> = {
   AIMA: "linear-gradient(90deg, var(--color-primary), var(--color-primary-hover))",
@@ -11,14 +12,18 @@ const LINE_GRADIENT: Record<string, string> = {
   "Diagnóstico": "linear-gradient(90deg, var(--color-warning), #FFC459)",
 };
 
-export function LineDistribution() {
-  // TODO: reemplazar por agregación de Supabase (vista `finance_by_line`)
+interface LineDistributionProps {
+  byLine?: ByLine[];
+}
+
+export function LineDistribution({ byLine }: LineDistributionProps) {
+  const items = byLine ?? BY_LINE;
   return (
     <Card>
       <CardHead>
         <CardTitle big icon={<Sparkles size={14} />}>Por línea de servicio</CardTitle>
       </CardHead>
-      {BY_LINE.map((it) => (
+      {items.map((it) => (
         <div key={it.id} className="mb-3 last:mb-0">
           <div className="flex justify-between text-[12.5px] mb-1.5">
             <Pill variant={it.id}>{it.id}</Pill>

@@ -6,9 +6,12 @@ import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 
 const MONTH_TARGET = 15000;
 
-export function MonthGoal() {
-  // TODO: reemplazar por valor real (revenue del mes actual)
-  const monthRevenue = FINANCE[FINANCE.length - 1].in;
+interface MonthGoalProps {
+  monthRevenue?: number;
+}
+
+export function MonthGoal({ monthRevenue: initialRevenue }: MonthGoalProps) {
+  const monthRevenue = initialRevenue ?? FINANCE[FINANCE.length - 1].in;
   const pct = (monthRevenue / MONTH_TARGET) * 100;
 
   return (

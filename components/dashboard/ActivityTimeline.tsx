@@ -3,18 +3,23 @@ import { ACTIVITY } from "@/lib/mock-data";
 import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { type LucideIcon } from "lucide-react";
+import type { ActivityItem } from "@/lib/types";
 
 const ICONS = Icons as unknown as Record<string, LucideIcon>;
 
-export function ActivityTimeline() {
-  // TODO: reemplazar por query a Supabase tabla `activity` (order by ts desc limit 10)
+interface ActivityTimelineProps {
+  activity?: ActivityItem[];
+}
+
+export function ActivityTimeline({ activity }: ActivityTimelineProps) {
+  const allActivity = activity ?? ACTIVITY;
   return (
     <Card>
       <CardHead>
         <CardTitle big>Actividad</CardTitle>
       </CardHead>
       <div className="relative">
-        {ACTIVITY.map((a, i, arr) => {
+        {allActivity.map((a, i, arr) => {
           const Ic = ICONS[a.ico] ?? Icons.Check;
           return (
             <div key={a.id} className="flex gap-3 pb-4 last:pb-0 relative">

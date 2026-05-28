@@ -32,10 +32,9 @@ const tareaSchema = z.object({
 
 type TareaForm = z.infer<typeof tareaSchema>;
 
-interface TareaRow extends Tarea {
-  asignado_nombre?: string;
-  proyecto_nombre?: string;
-}
+type TareaRow = Tarea & {
+  asignado_nombre?: string | null;
+};
 
 interface Props {
   tareas: TareaRow[];

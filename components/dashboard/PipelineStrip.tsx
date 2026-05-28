@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 import { STAGES, PROSPECTS } from "@/lib/mock-data";
+import type { Prospect } from "@/lib/types";
 
-export function PipelineStrip() {
+interface PipelineStripProps {
+  prospects?: Prospect[];
+}
+
+export function PipelineStrip({ prospects }: PipelineStripProps) {
+  const allProspects = prospects ?? PROSPECTS;
   const stageCounts = STAGES.map((s) => ({
     ...s,
-    count: PROSPECTS.filter((p) => p.stage === s.id).length,
+    count: allProspects.filter((p) => p.stage === s.id).length,
   }));
 
   return (

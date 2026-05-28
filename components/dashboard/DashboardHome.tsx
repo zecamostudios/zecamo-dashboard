@@ -17,24 +17,37 @@ import { ActivityTimeline } from "@/components/dashboard/ActivityTimeline";
 import { ProjectsInProgress } from "@/components/dashboard/ProjectsInProgress";
 import { MonthGoal } from "@/components/dashboard/MonthGoal";
 import { LineDistribution } from "@/components/dashboard/LineDistribution";
+import type { DashboardStats } from "@/lib/db/dashboard";
+import type { Meeting, ActivityItem, Project, Task, Prospect } from "@/lib/types";
 
 const MONTH_TARGET = 15000;
 
-export function DashboardHome() {
-  // TODO: reemplazar por queries a Supabase
-  const activeClients = CLIENTS.filter((c) => c.status === "active").length;
-  const totalMrr = CLIENTS.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
-  const totalIn = FINANCE.reduce((s, d) => s + d.in, 0);
-  const totalOut = FINANCE.reduce((s, d) => s + d.out, 0);
-  const netto = totalIn - totalOut;
-  const monthRevenue = FINANCE[FINANCE.length - 1].in;
+interface DashboardHomeProps {
+  stats?: DashboardStats;
+  meetings?: Meeting[];
+  activity?: ActivityItem[];
+  projects?: Project[];
+  tasks?: Task[];
+  prospects?: Prospect[];
+}
 
-  const inFunnel = PROSPECTS.filter(
+export function DashboardHome({ stats, meetings, activity, projects, tasks, prospects }: DashboardHomeProps) {
+  const activeClients = stats?.activeClients ?? CLIENTS.filter((c) => c.status === "active").length;
+  const totalMrr = stats?.totalMrr ?? CLIENTS.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
+  const allFinance = stats?.financeData ?? FINANCE;
+  const totalIn = allFinance.reduce((s, d) => s + d.in, 0);
+  const totalOut = allFinance.reduce((s, d) => s + d.out, 0);
+  const netto = totalIn - totalOut;
+  const monthRevenue = stats?.monthRevenue ?? (allFinance.length > 0 ? allFinance[allFinance.length - 1].in : 0);
+
+  const inFunnel = stats?.inFunnel ?? PROSPECTS.filter(
     (p) => !["venta", "noresp", "noventa", "seguim"].includes(p.stage),
   ).length;
-  const inFunnelValue = PROSPECTS.filter(
+  const inFunnelValue = stats?.inFunnelValue ?? PROSPECTS.filter(
     (p) => !["venta", "noresp", "noventa", "seguim"].includes(p.stage),
   ).reduce((s, p) => s + p.value, 0);
+
+  const allProspects = prospects ?? PROSPECTS;
 
   return (
     <>
@@ -90,7 +103,7 @@ export function DashboardHome() {
           value={fmtN(monthRevenue)}
           delta={{ value: "+24%", direction: "up" }}
           sub={`meta: $${fmtN(MONTH_TARGET)}`}
-          spark={<Sparkline data={FINANCE.map((d) => d.in)} color="#A47BFF" height={32} />}
+          spark={<Sparkline data={allFinance.map((d) => d.in)} color="#A47BFF" height={32} />}
         />
         <StatCard
           label="Pipeline activo"
@@ -107,11 +120,11 @@ export function DashboardHome() {
           <CardTitle big icon={<Target size={14} />}>
             Pipeline de prospectos
             <span className="ml-2 font-normal text-[12.5px] text-[var(--color-text-dim)] normal-case tracking-normal font-sans">
-              {PROSPECTS.length} prospectos · {fmtUsd(PROSPECTS.reduce((s, p) => s + p.value, 0))} en juego
+              {allProspects.length} prospectos · {fmtUsd(allProspects.reduce((s, p) => s + p.value, 0))} en juego
             </span>
           </CardTitle>
         </CardHead>
-        <PipelineStrip />
+        <PipelineStrip prospects={allProspects} />
       </Card>
 
       <div className="grid grid-cols-12 gap-[18px] mb-[18px]">
@@ -129,24 +142,24 @@ export function DashboardHome() {
               <Summary label="Neto" value={`+${fmtUsd(netto)}`} valueColor="var(--color-success)" />
               <Summary label="Margen" value={`${Math.round((netto / totalIn) * 100)}%`} />
             </div>
-            <RevenueChart data={FINANCE} />
+            <RevenueChart data={allFinance} />
           </Card>
         </div>
         <div className="col-span-4 max-[1100px]:col-span-12">
-          <TasksWidget />
+          <TasksWidget initialTasks={tasks} />
         </div>
       </div>
 
       <div className="grid grid-cols-12 gap-[18px] mb-[18px]">
-        <div className="col-span-4 max-[1100px]:col-span-12"><MeetingsWidget /></div>
-        <div className="col-span-4 max-[1100px]:col-span-12"><ProspectsRecent /></div>
-        <div className="col-span-4 max-[1100px]:col-span-12"><ActivityTimeline /></div>
+        <div className="col-span-4 max-[1100px]:col-span-12"><MeetingsWidget meetings={meetings} /></div>
+        <div className="col-span-4 max-[1100px]:col-span-12"><ProspectsRecent prospects={allProspects} /></div>
+        <div className="col-span-4 max-[1100px]:col-span-12"><ActivityTimeline activity={activity} /></div>
       </div>
 
       <div className="grid grid-cols-12 gap-[18px]">
-        <div className="col-span-8 max-[1100px]:col-span-12"><ProjectsInProgress /></div>
+        <div className="col-span-8 max-[1100px]:col-span-12"><ProjectsInProgress projects={projects} /></div>
         <div className="col-span-4 max-[1100px]:col-span-12 flex flex-col gap-[18px]">
-          <MonthGoal />
+          <MonthGoal monthRevenue={monthRevenue} />
           <LineDistribution />
         </div>
       </div>

@@ -10,9 +10,12 @@ import { Button } from "@/components/ui-zecamo/Button";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/lib/types";
 
-export function TasksWidget() {
-  // TODO: reemplazar por query a Supabase tabla `tasks` (where date_due = today)
-  const [tasks, setTasks] = useState<Task[]>(TASKS);
+interface TasksWidgetProps {
+  initialTasks?: Task[];
+}
+
+export function TasksWidget({ initialTasks }: TasksWidgetProps) {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks ?? TASKS);
   const toggle = (id: number) =>
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
 

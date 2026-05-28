@@ -56,13 +56,10 @@ export default function ClienteDetallePage() {
     if (isNew) return;
     async function load() {
       try {
-        const { data: c, error: cErr } = await supabase.from("clientes").select("id, nombre, contacto_nombre, contacto_email, contacto_tel, fecha_inicio, mrr_usd, estado, notas, created_at").eq("id", id).single();
+        const { data: c, error: cErr } = await supabase.from("clientes").select("*").eq("id", id).single();
         if (cErr || !c) { router.push("/clientes"); return; }
 
-        // Fetch new columns separately so missing migration doesn't break the whole page
-        const { data: extra } = await supabase.from("clientes").select("descripcion_negocio, problema_principal, solucion_implementada").eq("id", id).single();
-
-        setCliente({ ...c, descripcion_negocio: extra?.descripcion_negocio ?? null, problema_principal: extra?.problema_principal ?? null, solucion_implementada: extra?.solucion_implementada ?? null });
+        setCliente(c);
         reset({
           nombre: c.nombre,
           contacto_nombre: c.contacto_nombre || "",
@@ -72,9 +69,9 @@ export default function ClienteDetallePage() {
           mrr_usd: c.mrr_usd,
           estado: c.estado as typeof ESTADOS_CLIENTE[number],
           notas: c.notas || "",
-          descripcion_negocio: extra?.descripcion_negocio || "",
-          problema_principal: extra?.problema_principal || "",
-          solucion_implementada: extra?.solucion_implementada || "",
+          descripcion_negocio: c.descripcion_negocio || "",
+          problema_principal: c.problema_principal || "",
+          solucion_implementada: c.solucion_implementada || "",
         });
 
         const { data: p } = await supabase.from("proyectos").select("*").eq("cliente_id", id).order("created_at", { ascending: false });

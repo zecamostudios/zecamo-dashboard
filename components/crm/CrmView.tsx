@@ -9,15 +9,20 @@ import { Button } from "@/components/ui-zecamo/Button";
 import { StatCard, StatGrid } from "@/components/dashboard/StatCard";
 import { KanbanBoard } from "./KanbanBoard";
 import { PipelineFilters } from "./PipelineFilters";
-import type { OwnerId, ServiceLine } from "@/lib/types";
+import type { OwnerId, Prospect, ServiceLine } from "@/lib/types";
 
-export function CrmView() {
+interface CrmViewProps {
+  initialProspects?: Prospect[];
+}
+
+export function CrmView({ initialProspects }: CrmViewProps) {
   const [ownerFilter, setOwnerFilter] = useState<OwnerId | "all">("all");
   const [lineFilter, setLineFilter] = useState<ServiceLine | "all">("all");
   const [search, setSearch] = useState("");
 
-  // TODO: reemplazar por query a Supabase tabla `prospects`
-  const filtered = PROSPECTS.filter(
+  const allProspects = initialProspects ?? PROSPECTS;
+
+  const filtered = allProspects.filter(
     (p) =>
       (ownerFilter === "all" || p.owner === ownerFilter) &&
       (lineFilter === "all" || p.line === lineFilter) &&

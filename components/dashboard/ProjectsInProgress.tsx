@@ -6,10 +6,14 @@ import { Pill } from "@/components/ui-zecamo/Pill";
 import { Progress } from "@/components/ui-zecamo/Progress";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { Button } from "@/components/ui-zecamo/Button";
+import type { Project } from "@/lib/types";
 
-export function ProjectsInProgress() {
-  // TODO: reemplazar por query a Supabase tabla `projects` (status in ['curso','review'])
-  const projects = PROJECTS.filter((p) => p.status === "curso" || p.status === "review").slice(0, 5);
+interface ProjectsInProgressProps {
+  projects?: Project[];
+}
+
+export function ProjectsInProgress({ projects: initialProjects }: ProjectsInProgressProps) {
+  const projects = (initialProjects ?? PROJECTS).filter((p) => p.status === "curso" || p.status === "review").slice(0, 5);
 
   return (
     <Card>

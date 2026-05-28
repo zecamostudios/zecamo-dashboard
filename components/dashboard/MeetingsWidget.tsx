@@ -2,9 +2,14 @@ import { MoreHorizontal, Video } from "lucide-react";
 import { MEETINGS } from "@/lib/mock-data";
 import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
+import type { Meeting } from "@/lib/types";
 
-export function MeetingsWidget() {
-  // TODO: reemplazar por query a Supabase tabla `meetings` (date >= today, limit 5)
+interface MeetingsWidgetProps {
+  meetings?: Meeting[];
+}
+
+export function MeetingsWidget({ meetings }: MeetingsWidgetProps) {
+  const allMeetings = meetings ?? MEETINGS;
   return (
     <Card>
       <CardHead>
@@ -13,7 +18,7 @@ export function MeetingsWidget() {
           <MoreHorizontal size={13} />
         </button>
       </CardHead>
-      {MEETINGS.map((m) => (
+      {allMeetings.map((m) => (
         <div key={m.id} className="flex items-stretch gap-3 py-3 border-b border-[var(--color-border)]">
           <div className="text-right w-12 shrink-0 font-mono text-[11px] text-[var(--color-text-muted)] leading-tight">
             <div className="text-[var(--color-text)] font-semibold mb-0.5 text-[12px]">{m.day}</div>

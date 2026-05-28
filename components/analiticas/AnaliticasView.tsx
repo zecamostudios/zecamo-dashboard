@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { ExternalLink, Target, Clock, Sparkles, Globe } from "lucide-react";
 import { OWNERS, STAGES, PROSPECTS, LINES } from "@/lib/mock-data";
-import type { StageId } from "@/lib/types";
+import type { FinancePoint, Prospect, StageId } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Tabs } from "@/components/ui-zecamo/Tabs";
@@ -17,16 +17,22 @@ type Period = "Mes" | "3M" | "6M" | "YTD";
 
 const EXCLUDED: StageId[] = ["noresp", "noventa", "seguim"];
 
-export function AnaliticasView() {
+interface AnaliticasViewProps {
+  initialProspects?: Prospect[];
+  initialFinance?: FinancePoint[];
+}
+
+export function AnaliticasView({ initialProspects }: AnaliticasViewProps) {
   const [period, setPeriod] = useState<Period>("6M");
 
-  // TODO: Conectar Supabase tabla `prospects` (con vista agregada por etapa)
+  const allProspects = initialProspects ?? PROSPECTS;
+
   const cumulativeStages = useMemo(() => {
     const active = STAGES.filter((s) => !EXCLUDED.includes(s.id));
     const counts = active.map((s) => ({
       id: s.id,
       label: s.label,
-      count: PROSPECTS.filter((p) => p.stage === s.id).length,
+      count: allProspects.filter((p) => p.stage === s.id).length,
     }));
     let acc = 0;
     return [...counts]
@@ -36,7 +42,7 @@ export function AnaliticasView() {
         return { ...s, count: acc };
       })
       .reverse();
-  }, []);
+  }, [allProspects]);
 
   const stageTime: StageTime[] = [
     { id: "lead", l: "Lead nuevo", d: 1.5 },
@@ -47,15 +53,17 @@ export function AnaliticasView() {
   ];
   const totalCycle = stageTime.reduce((s, t) => s + t.d, 0);
 
-  const closeRate = Math.round(
-    (PROSPECTS.filter((p) => p.stage === "venta").length / PROSPECTS.length) * 100,
-  );
-  const avgDeal = Math.round(PROSPECTS.reduce((s, p) => s + p.value, 0) / PROSPECTS.length);
+  const closeRate = allProspects.length
+    ? Math.round((allProspects.filter((p) => p.stage === "venta").length / allProspects.length) * 100)
+    : 0;
+  const avgDeal = allProspects.length
+    ? Math.round(allProspects.reduce((s, p) => s + p.value, 0) / allProspects.length)
+    : 0;
 
   const closeByOwner = useMemo(
     () =>
       OWNERS.map((o) => {
-        const own = PROSPECTS.filter((p) => p.owner === o.id);
+        const own = allProspects.filter((p) => p.owner === o.id);
         const won = own.filter((p) => p.stage === "venta").length;
         const lost = own.filter((p) => p.stage === "noventa" || p.stage === "noresp").length;
         return {
@@ -69,12 +77,12 @@ export function AnaliticasView() {
           value: own.filter((p) => p.stage === "venta").reduce((s, p) => s + p.value, 0),
         };
       }),
-    [],
+    [allProspects],
   );
 
   const sourcesArr = useMemo(() => {
     const map: Record<string, { n: number; won: number; value: number }> = {};
-    PROSPECTS.forEach((p) => {
+    allProspects.forEach((p) => {
       if (!map[p.source]) map[p.source] = { n: 0, won: 0, value: 0 };
       map[p.source].n++;
       if (p.stage === "venta") {
@@ -85,12 +93,12 @@ export function AnaliticasView() {
     return Object.entries(map)
       .map(([k, v]) => ({ name: k, ...v, rate: v.won / v.n }))
       .sort((a, b) => b.n - a.n);
-  }, []);
+  }, [allProspects]);
 
   const byLine = useMemo(
     () =>
       LINES.map((l) => {
-        const ps = PROSPECTS.filter((p) => p.line === l.id);
+        const ps = allProspects.filter((p) => p.line === l.id);
         const won = ps.filter((p) => p.stage === "venta").length;
         return {
           id: l.id,
@@ -103,7 +111,7 @@ export function AnaliticasView() {
             .reduce((s, p) => s + p.value, 0),
         };
       }),
-    [],
+    [allProspects],
   );
 
   void period;

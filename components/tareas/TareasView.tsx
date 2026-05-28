@@ -12,11 +12,13 @@ import { TaskBoard } from "./TaskBoard";
 
 type View = "equipo" | "mias";
 
-export function TareasView() {
-  // TODO: Conectar Supabase tabla `tasks`
-  const [tasks, setTasks] = useState<Task[]>(TASKS);
+interface TareasViewProps {
+  initialTasks?: Task[];
+}
+
+export function TareasView({ initialTasks }: TareasViewProps) {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks ?? TASKS);
   const [view, setView] = useState<View>("equipo");
-  // TODO: Conectar Supabase Auth — meId vendría de la sesión
   const meId = "JS" as const;
 
   const filtered = useMemo(

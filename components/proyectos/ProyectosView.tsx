@@ -12,7 +12,11 @@ import { ProjectsList } from "./ProjectsList";
 import { ProjectDetail } from "./ProjectDetail";
 import type { OwnerId, Project, ServiceLine } from "@/lib/types";
 
-export function ProyectosView() {
+interface ProyectosViewProps {
+  initialProjects?: Project[];
+}
+
+export function ProyectosView({ initialProjects }: ProyectosViewProps) {
   const [view, setView] = useState<"kanban" | "lista">("kanban");
   const [lineFilter, setLineFilter] = useState<ServiceLine | "all">("all");
   const [ownerFilter, setOwnerFilter] = useState<OwnerId | "all">("all");
@@ -20,8 +24,9 @@ export function ProyectosView() {
 
   if (selected) return <ProjectDetail project={selected} onBack={() => setSelected(null)} />;
 
-  // TODO: reemplazar por query a Supabase tabla `projects`
-  const filtered = PROJECTS.filter(
+  const allProjects = initialProjects ?? PROJECTS;
+
+  const filtered = allProjects.filter(
     (p) =>
       (lineFilter === "all" || p.line === lineFilter) &&
       (ownerFilter === "all" || p.owner === ownerFilter),
@@ -31,7 +36,7 @@ export function ProyectosView() {
     <>
       <PageHead
         title="Proyectos"
-        subtitle={`${PROJECTS.filter((p) => p.status === "curso").length} en curso · ${PROJECTS.filter((p) => p.status === "review").length} en review · ${PROJECTS.filter((p) => p.status === "entregado").length} entregados`}
+        subtitle={`${allProjects.filter((p) => p.status === "curso").length} en curso · ${allProjects.filter((p) => p.status === "review").length} en review · ${allProjects.filter((p) => p.status === "entregado").length} entregados`}
         actions={
           <>
             <ViewToggle value={view} onChange={setView} />
