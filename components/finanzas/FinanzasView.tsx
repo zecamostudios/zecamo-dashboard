@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import {
-  DollarSign,
   Target,
   TrendingUp,
   ArrowUp,
