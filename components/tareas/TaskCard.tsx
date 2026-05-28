@@ -9,11 +9,15 @@ interface TaskCardProps {
   canPrev: boolean;
   canNext: boolean;
   onMove: (dir: "next" | "prev") => void;
+  onEdit?: (task: Task) => void;
 }
 
-export function TaskCard({ task, canPrev, canNext, onMove }: TaskCardProps) {
+export function TaskCard({ task, canPrev, canNext, onMove, onEdit }: TaskCardProps) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 hover:border-[var(--color-border-2)] transition">
+    <div
+      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 hover:border-[var(--color-border-2)] transition cursor-pointer"
+      onClick={() => onEdit?.(task)}
+    >
       <div className="flex justify-between items-start gap-2 mb-2">
         <div className="text-[13px] leading-snug">{task.text}</div>
         {task.prio === "alta" && (
@@ -39,7 +43,7 @@ export function TaskCard({ task, canPrev, canNext, onMove }: TaskCardProps) {
           <OwnerAvatar id={task.owner} size="xs" />
           <span className="text-[10.5px] text-[var(--color-text-muted)] font-mono">{task.due}</span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
           {canPrev && (
             <button
               onClick={() => onMove("prev")}

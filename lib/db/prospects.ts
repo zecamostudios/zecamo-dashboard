@@ -4,6 +4,7 @@ import type { Prospect, OwnerId, ServiceLine, StageId } from "@/lib/types";
 function rowToProspect(row: Record<string, unknown>, idx: number): Prospect {
   return {
     id: idx + 1,
+    dbId: String(row.id ?? ""),
     name: String(row.nombre_dueno ?? row.negocio ?? ""),
     company: String(row.negocio ?? ""),
     owner: (String(row.asignado_initials ?? "JS")) as OwnerId,

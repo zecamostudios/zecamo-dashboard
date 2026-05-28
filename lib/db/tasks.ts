@@ -21,6 +21,7 @@ let _idCounter = 100;
 function rowToTask(row: Record<string, unknown>): Task {
   return {
     id: _idCounter++,
+    dbId: String(row.id ?? ""),
     text: String(row.titulo ?? ""),
     status: ESTADO_TO_STATUS[String(row.estado ?? "todo")] ?? "hacer",
     prio: (String(row.prioridad ?? "media")) as Priority,

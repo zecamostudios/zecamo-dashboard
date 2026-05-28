@@ -33,6 +33,7 @@ export interface Stage {
 
 export interface Prospect {
   id: number;
+  dbId?: string;
   name: string;
   company: string;
   owner: OwnerId;
@@ -80,6 +81,7 @@ export type TaskStatus = "hacer" | "curso" | "review" | "hecho";
 
 export interface Task {
   id: number;
+  dbId?: string;
   text: string;
   status: TaskStatus;
   done?: boolean;

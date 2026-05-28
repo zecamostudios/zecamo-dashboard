@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Pill } from "@/components/ui-zecamo/Pill";
 import { ProspectCard } from "./ProspectCard";
@@ -8,10 +9,12 @@ interface StageColumnProps {
   stage: Stage;
   prospects: Prospect[];
   compact?: boolean;
+  canPrev?: boolean;
+  canNext?: boolean;
+  onMove?: (p: Prospect, dir: "prev" | "next") => void;
 }
 
-// TODO: usar @dnd-kit/core para drag-drop entre columnas en producción
-export function StageColumn({ stage, prospects, compact }: StageColumnProps) {
+export function StageColumn({ stage, prospects, compact, canPrev, canNext, onMove }: StageColumnProps) {
   const total = prospects.reduce((s, p) => s + p.value, 0);
 
   return (
@@ -21,24 +24,29 @@ export function StageColumn({ stage, prospects, compact }: StageColumnProps) {
           <Pill variant={stage.id} dot>{stage.label}</Pill>
           <span className="font-mono text-[11px] text-[var(--color-text-muted)]">{prospects.length}</span>
         </div>
-        <button className="w-6 h-6 grid place-items-center bg-transparent border-0 text-[var(--color-text-muted)] cursor-pointer rounded">
+        <Link
+          href={`/crm/nuevo?etapa=${stage.id}`}
+          className="w-6 h-6 grid place-items-center bg-transparent border-0 text-[var(--color-text-muted)] cursor-pointer rounded hover:text-[var(--color-text)] transition"
+          title="Nuevo prospecto en esta etapa"
+        >
           <Plus size={12} />
-        </button>
+        </Link>
       </div>
       {prospects.length > 0 && (
         <div className="font-mono text-[10.5px] text-[var(--color-text-dim)] mb-2 ml-1">{fmtUsd(total)} potencial</div>
       )}
       <div className="flex flex-col">
         {prospects.map((p) => (
-          <ProspectCard key={p.id} prospect={p} />
+          <ProspectCard key={p.id} prospect={p} onMove={onMove} canPrev={canPrev} canNext={canNext} />
         ))}
         {prospects.length === 0 && (
-          <div
-            className="text-center text-[12px] text-[var(--color-text-dim)] border border-dashed border-[var(--color-border-2)] rounded-lg"
+          <Link
+            href={`/crm/nuevo?etapa=${stage.id}`}
+            className="text-center text-[12px] text-[var(--color-text-dim)] border border-dashed border-[var(--color-border-2)] rounded-lg transition hover:border-[var(--color-border)] hover:text-[var(--color-text-muted)]"
             style={{ padding: compact ? "16px 12px" : "32px 12px" }}
           >
-            Sin prospectos
-          </div>
+            + Agregar
+          </Link>
         )}
       </div>
     </div>
