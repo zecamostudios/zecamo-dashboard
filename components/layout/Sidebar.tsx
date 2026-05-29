@@ -13,8 +13,12 @@ import {
   BarChart3,
   BookOpen,
   Settings,
-  ExternalLink,
   ChevronUp,
+  Sparkles,
+  CalendarDays,
+  ListVideo,
+  Images,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -60,6 +64,16 @@ export function Sidebar({ tasksCount, prospectsCount }: SidebarProps) {
         { href: "/outbound", label: "Outbound", icon: Megaphone, dot: true },
         { href: "/tareas", label: "Tareas", icon: CheckSquare, badge: tasksCount },
         { href: "/analytics", label: "Analíticas", icon: BarChart3 },
+      ],
+    },
+    {
+      label: "Content OS",
+      items: [
+        { href: "/content/ai-studio", label: "AI Studio", icon: Sparkles, dot: true },
+        { href: "/content/queue", label: "Queue", icon: ListVideo },
+        { href: "/content/planner", label: "Planner", icon: CalendarDays },
+        { href: "/content/assets", label: "Assets", icon: Images },
+        { href: "/content/automations", label: "Automations", icon: Workflow },
       ],
     },
     {
@@ -117,9 +131,7 @@ export function Sidebar({ tasksCount, prospectsCount }: SidebarProps) {
                   <span className="ml-auto w-[6px] h-[6px] rounded-full bg-[var(--color-primary-hover)] shadow-[0_0_8px_var(--color-glow)]" />
                 )}
                 {it.external && (
-                  <span className="ml-auto opacity-45">
-                    <ExternalLink size={11} />
-                  </span>
+                  <span className="ml-auto opacity-45 font-mono text-[9px]">↗</span>
                 )}
               </Link>
             );

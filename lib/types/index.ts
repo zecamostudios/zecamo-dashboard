@@ -155,3 +155,100 @@ export interface ByLine {
   v?: number;
   pct?: number;
 }
+
+// ============================================================
+// Content OS types
+// ============================================================
+
+export type ContentPlatform = "linkedin" | "twitter" | "instagram" | "facebook";
+export type ContentType = "post" | "thread" | "carousel" | "story";
+export type ContentStatus =
+  | "borrador"
+  | "revision"
+  | "aprobado"
+  | "programado"
+  | "publicado"
+  | "rechazado";
+
+export interface ContentPost {
+  id: string;
+  titulo: string;
+  contenido?: string;
+  plataforma: ContentPlatform;
+  tipo: ContentType;
+  estado: ContentStatus;
+  ai_score?: number;
+  ai_feedback?: string;
+  hook?: string;
+  cta?: string;
+  hashtags?: string[];
+  media_urls?: string[];
+  programado_para?: string;
+  publicado_en?: string;
+  creado_por?: string;
+  aprobado_por?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AssetType =
+  | "hook"
+  | "cta"
+  | "template_carousel"
+  | "logo"
+  | "brand"
+  | "inspiracion"
+  | "framework";
+
+export interface ContentAsset {
+  id: string;
+  nombre: string;
+  tipo: AssetType;
+  contenido?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+  url?: string;
+  uses: number;
+  favorito: boolean;
+  creado_por?: string;
+  created_at: string;
+}
+
+export interface PlannerSlot {
+  id: string;
+  post_id: string;
+  fecha: string;
+  hora?: string;
+  plataforma: ContentPlatform;
+  estado: string;
+  orden: number;
+  post?: ContentPost;
+}
+
+export type AIGenerationType = "hook" | "post" | "thread" | "carousel" | "rewrite";
+
+export interface AIGeneration {
+  id: string;
+  tipo: AIGenerationType;
+  prompt: string;
+  resultado?: string;
+  plataforma?: ContentPlatform;
+  modelo: string;
+  tokens_in?: number;
+  tokens_out?: number;
+  post_id?: string;
+  created_at: string;
+}
+
+export interface AutomationRun {
+  id: string;
+  nombre: string;
+  tipo: "n8n" | "scheduled" | "manual";
+  estado: "pending" | "running" | "success" | "error";
+  payload?: Record<string, unknown>;
+  resultado?: Record<string, unknown>;
+  error_msg?: string;
+  iniciado_en?: string;
+  finalizado_en?: string;
+  created_at: string;
+}

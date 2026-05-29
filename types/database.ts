@@ -637,8 +637,223 @@ export interface Database {
         };
         Relationships: [];
       };
+      // ---- Content OS tables ----
+      content_posts: {
+        Row: {
+          id: string;
+          titulo: string;
+          contenido: string | null;
+          plataforma: string;
+          tipo: string;
+          estado: string;
+          ai_score: number | null;
+          ai_feedback: string | null;
+          hook: string | null;
+          cta: string | null;
+          hashtags: string[] | null;
+          media_urls: string[] | null;
+          programado_para: string | null;
+          publicado_en: string | null;
+          creado_por: string | null;
+          aprobado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          titulo: string;
+          contenido?: string | null;
+          plataforma?: string;
+          tipo?: string;
+          estado?: string;
+          ai_score?: number | null;
+          ai_feedback?: string | null;
+          hook?: string | null;
+          cta?: string | null;
+          hashtags?: string[] | null;
+          media_urls?: string[] | null;
+          programado_para?: string | null;
+          publicado_en?: string | null;
+          creado_por?: string | null;
+          aprobado_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          titulo?: string;
+          contenido?: string | null;
+          plataforma?: string;
+          tipo?: string;
+          estado?: string;
+          ai_score?: number | null;
+          ai_feedback?: string | null;
+          hook?: string | null;
+          cta?: string | null;
+          hashtags?: string[] | null;
+          media_urls?: string[] | null;
+          programado_para?: string | null;
+          publicado_en?: string | null;
+          aprobado_por?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      content_assets: {
+        Row: {
+          id: string;
+          nombre: string;
+          tipo: string;
+          contenido: string | null;
+          tags: string[] | null;
+          metadata: Record<string, unknown> | null;
+          url: string | null;
+          uses: number;
+          favorito: boolean;
+          creado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          nombre: string;
+          tipo: string;
+          contenido?: string | null;
+          tags?: string[] | null;
+          metadata?: Record<string, unknown> | null;
+          url?: string | null;
+          uses?: number;
+          favorito?: boolean;
+          creado_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          nombre?: string;
+          tipo?: string;
+          contenido?: string | null;
+          tags?: string[] | null;
+          metadata?: Record<string, unknown> | null;
+          url?: string | null;
+          uses?: number;
+          favorito?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      content_planner: {
+        Row: {
+          id: string;
+          post_id: string;
+          fecha: string;
+          hora: string | null;
+          plataforma: string;
+          estado: string;
+          orden: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          fecha: string;
+          hora?: string | null;
+          plataforma: string;
+          estado?: string;
+          orden?: number;
+        };
+        Update: {
+          fecha?: string;
+          hora?: string | null;
+          plataforma?: string;
+          estado?: string;
+          orden?: number;
+        };
+        Relationships: [];
+      };
+      content_ai_generations: {
+        Row: {
+          id: string;
+          tipo: string;
+          prompt: string;
+          resultado: string | null;
+          plataforma: string | null;
+          modelo: string;
+          tokens_in: number | null;
+          tokens_out: number | null;
+          post_id: string | null;
+          creado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tipo: string;
+          prompt: string;
+          resultado?: string | null;
+          plataforma?: string | null;
+          modelo?: string;
+          tokens_in?: number | null;
+          tokens_out?: number | null;
+          post_id?: string | null;
+          creado_por?: string | null;
+        };
+        Update: {
+          resultado?: string | null;
+          tokens_in?: number | null;
+          tokens_out?: number | null;
+        };
+        Relationships: [];
+      };
+      content_automation_runs: {
+        Row: {
+          id: string;
+          nombre: string;
+          tipo: string;
+          estado: string;
+          payload: Record<string, unknown> | null;
+          resultado: Record<string, unknown> | null;
+          error_msg: string | null;
+          iniciado_en: string | null;
+          finalizado_en: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nombre: string;
+          tipo: string;
+          estado?: string;
+          payload?: Record<string, unknown> | null;
+          resultado?: Record<string, unknown> | null;
+          error_msg?: string | null;
+          iniciado_en?: string | null;
+          finalizado_en?: string | null;
+        };
+        Update: {
+          estado?: string;
+          resultado?: Record<string, unknown> | null;
+          error_msg?: string | null;
+          finalizado_en?: string | null;
+        };
+        Relationships: [];
+      };
     };
-    Views: Record<string, never>;
+    Views: {
+      prospectos_ext: {
+        Row: {
+          id: string;
+          negocio: string;
+          nombre_dueno: string | null;
+          fuente: string | null;
+          etapa: string;
+          linea_servicio: string | null;
+          valor_estimado: number;
+          asignado_initials: string | null;
+          last_activity: string | null;
+          fecha_contacto: string | null;
+          created_at: string;
+          asignado_nombre: string | null;
+        };
+        Relationships: [];
+      };
+    };
     Functions: Record<string, never>;
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

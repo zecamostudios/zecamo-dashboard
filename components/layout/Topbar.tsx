@@ -10,18 +10,26 @@ const SECTION_NAMES: Record<string, string> = {
   "/crm": "CRM",
   "/clientes": "Clientes",
   "/proyectos": "Proyectos",
-  "/calculadora": "Calculadora",
+  "/pricing": "Calculadora",
   "/finanzas": "Finanzas",
   "/outbound": "Outbound",
   "/tareas": "Tareas",
-  "/analiticas": "Analíticas",
+  "/analytics": "Analíticas",
   "/manual": "Manual",
   "/configuracion": "Configuración",
+  "/content/ai-studio": "AI Studio",
+  "/content/queue": "Queue",
+  "/content/planner": "Planner",
+  "/content/assets": "Assets",
+  "/content/automations": "Automations",
 };
 
 export function Topbar() {
   const pathname = usePathname() ?? "/";
-  const current = SECTION_NAMES[pathname] ?? "Dashboard";
+  const current =
+    SECTION_NAMES[pathname] ??
+    Object.entries(SECTION_NAMES).find(([k]) => k !== "/" && pathname.startsWith(k))?.[1] ??
+    "Dashboard";
 
   return (
     <div className="flex items-center justify-between px-8 py-[14px] border-b border-[var(--color-border)] bg-[var(--color-bg)]/70 backdrop-blur-[20px] sticky top-0 z-20">
