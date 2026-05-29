@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS content_ai_generations (
   prompt      TEXT NOT NULL,
   resultado   TEXT,
   plataforma  TEXT,
-  modelo      TEXT DEFAULT 'claude-sonnet-4-6',
+  modelo      TEXT DEFAULT 'gpt-5.4',
   tokens_in   INT,
   tokens_out  INT,
   post_id     UUID REFERENCES content_posts(id) ON DELETE SET NULL,

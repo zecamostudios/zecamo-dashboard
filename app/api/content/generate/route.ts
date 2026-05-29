@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import type { AIGenerationType, ContentPlatform } from "@/lib/types";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const PRIMARY_MODEL = "gpt-5.4";
+const FALLBACK_MODEL = "gpt-5.4-mini";
 
 const SYSTEM_PROMPT = `Sos un experto en marketing de contenidos para LinkedIn, X/Twitter e Instagram para agencias y consultoras de automatización e IA.
 Tu objetivo: generar contenido que interrumpa el scroll, construya autoridad y genere acción.
@@ -26,8 +27,7 @@ Respondé con JSON: {
 Respondé con JSON: {
   "tweets": [
     { "n": 1, "text": "tweet hook" },
-    { "n": 2, "text": "tweet desarrollo..." },
-    ...
+    { "n": 2, "text": "tweet desarrollo..." }
   ],
   "hook": "el primer tweet",
   "cta": "último tweet con CTA"
@@ -36,8 +36,7 @@ Respondé con JSON: {
   carousel: `Generá la estructura de un carrusel para Instagram o LinkedIn.
 Respondé con JSON: {
   "slides": [
-    { "n": 1, "titulo": "...", "cuerpo": "...", "nota_visual": "..." },
-    ...máximo 10 slides
+    { "n": 1, "titulo": "...", "cuerpo": "...", "nota_visual": "..." }
   ],
   "hook": "promesa del slide 1",
   "cta": "slide final"
@@ -58,6 +57,27 @@ const CHAR_LIMITS: Record<ContentPlatform, number> = {
   instagram: 2200,
   facebook: 5000,
 };
+
+function getClient(): OpenAI {
+  if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not set");
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+async function callOpenAI(
+  model: string,
+  system: string,
+  userMessage: string,
+): Promise<OpenAI.Chat.ChatCompletion> {
+  return getClient().chat.completions.create({
+    model,
+    max_tokens: 2048,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: userMessage },
+    ],
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -83,16 +103,20 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join("\n");
 
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT + "\n\n" + TYPE_INSTRUCTIONS[tipo],
-      messages: [{ role: "user", content: userMessage }],
-    });
+    const fullSystem = SYSTEM_PROMPT + "\n\n" + TYPE_INSTRUCTIONS[tipo];
 
-    const rawText = message.content[0].type === "text" ? message.content[0].text : "";
+    let completion: OpenAI.Chat.ChatCompletion;
+    let modelUsed = PRIMARY_MODEL;
+    try {
+      completion = await callOpenAI(PRIMARY_MODEL, fullSystem, userMessage);
+    } catch {
+      completion = await callOpenAI(FALLBACK_MODEL, fullSystem, userMessage);
+      modelUsed = FALLBACK_MODEL;
+    }
 
-    // Parse JSON from Claude response
+    const rawText = completion.choices[0]?.message?.content ?? "";
+    const usage = completion.usage;
+
     let parsed: Record<string, unknown>;
     try {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
@@ -101,7 +125,8 @@ export async function POST(req: NextRequest) {
       parsed = { content: rawText };
     }
 
-    // Normalize to a common output format
+    const tokens = (usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0);
+
     let result: Record<string, unknown>;
 
     if (tipo === "hook") {
@@ -112,7 +137,8 @@ export async function POST(req: NextRequest) {
         hook: hooks[best] ?? hooks[0],
         alternatives: hooks,
         cta: null,
-        tokens: message.usage.input_tokens + message.usage.output_tokens,
+        tokens,
+        model: modelUsed,
       };
     } else if (tipo === "thread") {
       const tweets = (parsed.tweets as { n: number; text: string }[]) ?? [];
@@ -120,7 +146,8 @@ export async function POST(req: NextRequest) {
         content: tweets.map((t) => `${t.n}/ ${t.text}`).join("\n\n"),
         hook: parsed.hook as string,
         cta: parsed.cta as string,
-        tokens: message.usage.input_tokens + message.usage.output_tokens,
+        tokens,
+        model: modelUsed,
       };
     } else if (tipo === "carousel") {
       const slides = (parsed.slides as { n: number; titulo: string; cuerpo: string }[]) ?? [];
@@ -128,14 +155,16 @@ export async function POST(req: NextRequest) {
         content: slides.map((s) => `Slide ${s.n}: ${s.titulo}\n${s.cuerpo}`).join("\n\n---\n\n"),
         hook: parsed.hook as string,
         cta: parsed.cta as string,
-        tokens: message.usage.input_tokens + message.usage.output_tokens,
+        tokens,
+        model: modelUsed,
       };
     } else {
       result = {
         content: (parsed.content ?? parsed.rewritten ?? rawText) as string,
         hook: parsed.hook as string,
         cta: parsed.cta as string,
-        tokens: message.usage.input_tokens + message.usage.output_tokens,
+        tokens,
+        model: modelUsed,
       };
     }
 
