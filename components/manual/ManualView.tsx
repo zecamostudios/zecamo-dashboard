@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ExternalLink, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { ExternalLink, Plus, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { toast } from "sonner";
+
+const MODAL_INPUT = "w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
 import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
@@ -12,6 +15,8 @@ import { SearchBar } from "./SearchBar";
 export function ManualView() {
   const [active, setActive] = useState<SectionId>("identidad");
   const [search, setSearch] = useState("");
+  const [showNewSection, setShowNewSection] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
 
   const filtered = useMemo(
     () =>
@@ -34,8 +39,12 @@ export function ManualView() {
         subtitle="Documentación viva de cómo trabajamos en Zecamo."
         actions={
           <>
-            <Button><ExternalLink size={12} />Versión pública</Button>
-            <Button variant="primary"><Plus size={14} />Nueva sección</Button>
+            <Button onClick={() => window.open("https://zecamostudios.com/manual", "_blank")}>
+              <ExternalLink size={12} />Versión pública
+            </Button>
+            <Button variant="primary" onClick={() => setShowNewSection(true)}>
+              <Plus size={14} />Nueva sección
+            </Button>
           </>
         }
       />
@@ -88,6 +97,26 @@ export function ManualView() {
           </div>
         </div>
       </div>
+
+      {showNewSection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowNewSection(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative z-10 w-full max-w-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[15px] font-semibold">Nueva sección</h2>
+              <button onClick={() => setShowNewSection(false)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer"><X size={16} /></button>
+            </div>
+            <div>
+              <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Nombre *</label>
+              <input autoFocus value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newSectionName.trim()) { toast.success(`Sección "${newSectionName}" creada`); setShowNewSection(false); setNewSectionName(""); } }} placeholder="Ej: Procesos de onboarding" className={MODAL_INPUT} />
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowNewSection(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer transition">Cancelar</button>
+              <button onClick={() => { if (!newSectionName.trim()) return; toast.success(`Sección "${newSectionName}" creada`); setShowNewSection(false); setNewSectionName(""); }} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition">Crear</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

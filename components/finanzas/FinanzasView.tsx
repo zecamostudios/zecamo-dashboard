@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { CLIENTS, FINANCE, TRANSACTIONS, BY_LINE } from "@/lib/mock-data";
 import { fmtN } from "@/lib/utils";
+import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
@@ -30,6 +31,23 @@ import type { Client, Transaction, FinancePoint, ByLine } from "@/lib/types";
 type Currency = "USD" | "ARS";
 type Range = "Mes" | "3M" | "6M" | "YTD";
 
+function exportCSV(transactions: Transaction[], fmt: (n: number) => string) {
+  const rows = [
+    ["Fecha", "Concepto", "Línea", "Owner", "Tipo", "Monto"],
+    ...transactions.map((tx) => [tx.d, tx.c, tx.line, tx.owner, tx.type, fmt(tx.a)]),
+  ];
+  const csv = rows.map((r) => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `finanzas-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const MODAL_INPUT = "w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition";
+
 const RATE = 1180;
 
 interface FinanzasViewProps {
@@ -42,6 +60,9 @@ interface FinanzasViewProps {
 export function FinanzasView({ initialClients, initialTransactions, initialFinance, initialByLine }: FinanzasViewProps) {
   const [currency, setCurrency] = useState<Currency>("USD");
   const [range, setRange] = useState<Range>("6M");
+  const [showAll, setShowAll] = useState(false);
+  const [showTxModal, setShowTxModal] = useState(false);
+  const [txForm, setTxForm] = useState({ date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "" });
 
   const conv = (n: number) => (currency === "USD" ? n : Math.round(n * RATE));
   const symbol = currency;
@@ -91,8 +112,12 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
               onChange={(v) => setRange(v as Range)}
               tabs={(["Mes", "3M", "6M", "YTD"] as const).map((r) => ({ value: r, label: r }))}
             />
-            <Button><ExternalLink size={12} />Exportar</Button>
-            <Button variant="primary"><Plus size={14} />Nueva transacción</Button>
+            <Button onClick={() => exportCSV(allTransactions, fmt)}>
+              <ExternalLink size={12} />Exportar
+            </Button>
+            <Button variant="primary" onClick={() => setShowTxModal(true)}>
+              <Plus size={14} />Nueva transacción
+            </Button>
           </>
         }
       />
@@ -183,8 +208,12 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             <CardHead>
               <CardTitle big icon={<Wallet size={16} />}>Transacciones recientes</CardTitle>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" className="px-2 py-1"><Filter size={12} />Filtrar</Button>
-                <Button variant="ghost" className="px-2 py-1">Ver todas <ArrowRight size={12} /></Button>
+                <Button variant="ghost" className="px-2 py-1" onClick={() => toast.info("Filtros disponibles: seleccioná rango y moneda en el encabezado.")}>
+                  <Filter size={12} />Filtrar
+                </Button>
+                <Button variant="ghost" className="px-2 py-1" onClick={() => setShowAll((v) => !v)}>
+                  {showAll ? "Ver menos" : "Ver todas"} <ArrowRight size={12} />
+                </Button>
               </div>
             </CardHead>
           </div>
@@ -201,7 +230,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
                 </tr>
               </thead>
               <tbody>
-                {allTransactions.map((tx, i) => (
+                {(showAll ? allTransactions : allTransactions.slice(0, 8)).map((tx, i) => (
                   <TransactionRow key={i} tx={tx} format={fmt} />
                 ))}
               </tbody>
@@ -245,6 +274,56 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
           </Card>
         </div>
       </div>
+
+      {/* Nueva transacción modal */}
+      {showTxModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowTxModal(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative z-10 w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[15px] font-semibold">Nueva transacción</h2>
+              <button onClick={() => setShowTxModal(false)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer">✕</button>
+            </div>
+            <div className="space-y-3.5">
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Concepto *</label>
+                <input value={txForm.concept} onChange={(e) => setTxForm((f) => ({ ...f, concept: e.target.value }))} placeholder="Ej: Mensualidad cliente X" className={MODAL_INPUT} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Tipo</label>
+                  <select value={txForm.type} onChange={(e) => setTxForm((f) => ({ ...f, type: e.target.value }))} className={MODAL_INPUT}>
+                    <option value="ingreso">Ingreso</option>
+                    <option value="egreso">Egreso</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Monto (USD)</label>
+                  <input type="number" value={txForm.amount} onChange={(e) => setTxForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0" className={MODAL_INPUT} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Línea</label>
+                  <select value={txForm.line} onChange={(e) => setTxForm((f) => ({ ...f, line: e.target.value }))} className={MODAL_INPUT}>
+                    {["Webs", "AIMA", "AISA", "Branding", "AdsM"].map((l) => <option key={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Fecha</label>
+                  <input type="date" value={txForm.date} onChange={(e) => setTxForm((f) => ({ ...f, date: e.target.value }))} className={MODAL_INPUT} />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setShowTxModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer transition hover:border-[var(--color-border-2)]">Cancelar</button>
+              <button onClick={() => { if (!txForm.concept.trim()) return; toast.success(`Transacción "${txForm.concept}" registrada`); setShowTxModal(false); setTxForm({ date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "" }); }} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition">
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

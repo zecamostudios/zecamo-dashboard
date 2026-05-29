@@ -1,3 +1,6 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import { Folder, Plus } from "lucide-react";
 import { Pill } from "@/components/ui-zecamo/Pill";
 import { Progress } from "@/components/ui-zecamo/Progress";
@@ -5,6 +8,7 @@ import { Button } from "@/components/ui-zecamo/Button";
 import type { Project } from "@/lib/types";
 
 export function ProjectsAssociated({ projects }: { projects: Project[] }) {
+  const router = useRouter();
   if (projects.length === 0) {
     return (
       <div className="py-12 text-center">
@@ -13,7 +17,7 @@ export function ProjectsAssociated({ projects }: { projects: Project[] }) {
         </div>
         <p className="font-[family-name:var(--font-display)] text-[16px] font-medium m-0">Sin proyectos aún</p>
         <p className="text-[12.5px] text-[var(--color-text-muted)] mt-1 mb-4">Arrancá el primer proyecto para este cliente.</p>
-        <Button variant="primary">
+        <Button variant="primary" onClick={() => router.push("/proyectos")}>
           <Plus size={13} />Crear proyecto
         </Button>
       </div>

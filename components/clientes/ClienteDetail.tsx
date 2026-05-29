@@ -1,4 +1,7 @@
+"use client";
+
 import { ChevronLeft, Mail, Plus, Folder } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { PROJECTS } from "@/lib/mock-data";
 import { fmtN } from "@/lib/utils";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -23,6 +26,7 @@ interface ClienteDetailProps {
 }
 
 export function ClienteDetail({ client, onBack }: ClienteDetailProps) {
+  const router = useRouter();
   const projects = PROJECTS.filter((p) => p.client === client.name);
   const payments = [
     { d: "22 May 2026", c: "Mensualidad mayo", a: client.mrr, status: "Pagado" },
@@ -46,8 +50,8 @@ export function ClienteDetail({ client, onBack }: ClienteDetailProps) {
         actions={
           <>
             <Pill variant={client.status} dot>{STATUS_LABEL[client.status]}</Pill>
-            <Button><Mail size={13} />Mensaje</Button>
-            <Button variant="primary"><Plus size={14} />Nuevo proyecto</Button>
+            <Button onClick={() => { window.location.href = `mailto:${client.contact.split(" ")[0].toLowerCase()}@${client.name.toLowerCase().replace(/\s/g, "")}.com`; }}><Mail size={13} />Mensaje</Button>
+            <Button variant="primary" onClick={() => router.push("/proyectos")}><Plus size={14} />Nuevo proyecto</Button>
           </>
         }
       />

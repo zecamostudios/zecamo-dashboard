@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Plus, Inbox, Send, Calendar, X } from "lucide-react";
+import { toast } from "sonner";
 import { OWNERS, OUTBOUND_MESSAGES, TEMPLATES } from "@/lib/mock-data";
 import type { OutboundMessage, OutboundStatus, OwnerId, Template } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -18,10 +19,14 @@ interface OutboundViewProps {
   initialTemplates?: Template[];
 }
 
+const MODAL_INPUT = "w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition";
+
 export function OutboundView({ initialMessages, initialTemplates }: OutboundViewProps) {
   const [ownerFilter, setOwnerFilter] = useState<OwnerId | "all">("all");
   const [statusFilter, setStatusFilter] = useState<OutboundStatus | "all">("all");
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [msgForm, setMsgForm] = useState({ prospect: "", platform: "linkedin", message: "" });
 
   const allMessages = initialMessages ?? OUTBOUND_MESSAGES;
   const allTemplates = initialTemplates ?? TEMPLATES;
@@ -68,7 +73,7 @@ export function OutboundView({ initialMessages, initialTemplates }: OutboundView
             >
               <Inbox size={13} />Templates
             </Button>
-            <Button variant="primary"><Plus size={14} />Nuevo mensaje</Button>
+            <Button variant="primary" onClick={() => setShowMsgModal(true)}><Plus size={14} />Nuevo mensaje</Button>
           </>
         }
       />
@@ -144,6 +149,50 @@ export function OutboundView({ initialMessages, initialTemplates }: OutboundView
           />
           <LeadTable messages={filtered} />
         </>
+      )}
+
+      {showMsgModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowMsgModal(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative z-10 w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[15px] font-semibold">Nuevo mensaje</h2>
+              <button onClick={() => setShowMsgModal(false)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer"><X size={16} /></button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Prospecto *</label>
+                <input autoFocus value={msgForm.prospect} onChange={(e) => setMsgForm((f) => ({ ...f, prospect: e.target.value }))} placeholder="Nombre del prospecto" className={MODAL_INPUT} />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Plataforma</label>
+                <select value={msgForm.platform} onChange={(e) => setMsgForm((f) => ({ ...f, platform: e.target.value }))} className={MODAL_INPUT}>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="email">Email</option>
+                  <option value="instagram">Instagram</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Mensaje</label>
+                <textarea rows={3} value={msgForm.message} onChange={(e) => setMsgForm((f) => ({ ...f, message: e.target.value }))} placeholder="Escribí el mensaje…" className={`${MODAL_INPUT} resize-none`} />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowMsgModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer transition">Cancelar</button>
+              <button
+                onClick={() => {
+                  if (!msgForm.prospect.trim()) return;
+                  toast.success(`Mensaje enviado a ${msgForm.prospect}`);
+                  setShowMsgModal(false);
+                  setMsgForm({ prospect: "", platform: "linkedin", message: "" });
+                }}
+                className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition"
+              >
+                Enviar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

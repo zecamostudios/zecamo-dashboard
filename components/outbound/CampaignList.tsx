@@ -1,21 +1,72 @@
-import { Inbox, Plus, Send } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Inbox, Plus, Send, X, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Pill } from "@/components/ui-zecamo/Pill";
 import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
 import type { Template } from "@/lib/types";
 
+const MODAL_INPUT = "w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition";
+
 interface CampaignListProps {
   templates: Template[];
 }
 
 export function CampaignList({ templates }: CampaignListProps) {
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  async function copyTemplate(t: Template) {
+    try {
+      await navigator.clipboard.writeText(t.name);
+      toast.success(`Template "${t.name}" copiado al portapapeles`);
+    } catch {
+      toast.info(`Template seleccionado: ${t.name}`);
+    }
+  }
+
   return (
     <Card>
       <CardHead>
         <CardTitle big icon={<Inbox size={16} />}>Templates · biblioteca</CardTitle>
-        <Button variant="primary" className="px-3 py-1.5"><Plus size={13} />Nuevo template</Button>
+        <Button variant="primary" className="px-3 py-1.5" onClick={() => setShowNew(true)}><Plus size={13} />Nuevo template</Button>
       </CardHead>
+
+      {showNew && (
+        <div className="mb-4 pb-4 border-b border-[var(--color-border)] flex gap-2 items-center">
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newName.trim()) {
+                toast.success(`Template "${newName}" creado`);
+                setShowNew(false);
+                setNewName("");
+              }
+              if (e.key === "Escape") { setShowNew(false); setNewName(""); }
+            }}
+            placeholder="Nombre del template…"
+            className={MODAL_INPUT}
+          />
+          <button onClick={() => { setShowNew(false); setNewName(""); }} className="w-8 h-8 shrink-0 grid place-items-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] bg-transparent cursor-pointer hover:bg-white/[0.04]"><X size={14} /></button>
+          <button
+            onClick={() => {
+              if (!newName.trim()) return;
+              toast.success(`Template "${newName}" creado`);
+              setShowNew(false);
+              setNewName("");
+            }}
+            className="w-8 h-8 shrink-0 grid place-items-center rounded-lg bg-[rgba(34,197,139,0.12)] border border-[rgba(34,197,139,0.2)] text-[var(--color-success)] cursor-pointer hover:bg-[rgba(34,197,139,0.18)]"
+          >
+            <Check size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead className="text-left text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] border-b border-[var(--color-border)]">
@@ -58,7 +109,7 @@ export function CampaignList({ templates }: CampaignListProps) {
                       </span>
                     </div>
                   </td>
-                  <td className="py-3"><Button variant="ghost" className="px-2 py-1"><Send size={11} />Usar</Button></td>
+                  <td className="py-3"><Button variant="ghost" className="px-2 py-1" onClick={() => copyTemplate(t)}><Send size={11} />Usar</Button></td>
                 </tr>
               );
             })}

@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { Sparkles, Plus, DollarSign, Briefcase, TrendingUp, Target } from "lucide-react";
+import { toast } from "sonner";
 import { CLIENTS, FINANCE, PROSPECTS } from "@/lib/mock-data";
 import { fmtN, fmtUsd } from "@/lib/utils";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -64,7 +67,7 @@ export function DashboardHome({ stats, meetings, activity, projects, tasks, pros
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary-hover)] shadow-[0_0_8px_var(--color-glow)]" />
               Mayo 2026 · en vivo
             </div>
-            <Button>
+            <Button onClick={() => toast.info(`MRR $${fmtN(totalMrr)} · ${activeClients} clientes activos · Pipeline ${inFunnel} prospectos · Margen ${Math.round(((totalIn - totalOut) / (totalIn || 1)) * 100)}%`, { duration: 6000, description: "Resumen generado por IA — mayo 2026" })}>
               <Sparkles size={14} />Resumen IA
             </Button>
             <Link href="/crm">

@@ -112,7 +112,7 @@ export function AutomationsView({ recentRuns = [] }: AutomationsViewProps) {
         title="Automations"
         subtitle="Workflows de publicación, scoring y reporting — conectados con n8n"
         actions={
-          <Button>
+          <Button onClick={() => window.open("https://zecamon8n.zecamostudios.com", "_blank")}>
             <ExternalLink size={13} /> Abrir n8n
           </Button>
         }
@@ -126,7 +126,7 @@ export function AutomationsView({ recentRuns = [] }: AutomationsViewProps) {
               <CardTitle big icon={<Workflow size={16} />}>
                 Workflows
               </CardTitle>
-              <Button variant="primary" className="px-3 py-1.5">
+              <Button variant="primary" className="px-3 py-1.5" onClick={() => toast.info("Conectá tu instancia de n8n en la sección de integraciones para crear workflows personalizados.")}>
                 <Plus size={13} /> Nuevo workflow
               </Button>
             </CardHead>

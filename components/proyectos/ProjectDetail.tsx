@@ -1,4 +1,8 @@
+"use client";
+
+import { useState, useRef } from "react";
 import { ChevronLeft, ExternalLink, Plus, Check, CheckSquare, MessageSquare, Folder } from "lucide-react";
+import { toast } from "sonner";
 import { OWNERS } from "@/lib/mock-data";
 import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
 import { Pill } from "@/components/ui-zecamo/Pill";
@@ -9,7 +13,7 @@ import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { StatCard, StatGrid } from "@/components/dashboard/StatCard";
 import type { Project } from "@/lib/types";
 
-const SAMPLE_TASKS = [
+const INITIAL_TASKS = [
   { t: "Wireframes finales aprobados", done: true, due: "15 Abr" },
   { t: "Diseño visual homepage", done: true, due: "28 Abr" },
   { t: "Diseño visual interna producto", done: true, due: "05 May" },
@@ -31,8 +35,29 @@ const FILES = [
   { n: "Brief inicial.pdf", s: "840 KB" },
 ];
 
+const MODAL_INPUT = "w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition";
+
 export function ProjectDetail({ project, onBack }: { project: Project; onBack: () => void }) {
   const owner = OWNERS.find((o) => o.id === project.owner);
+  const filesRef = useRef<HTMLDivElement>(null);
+  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const [addingTask, setAddingTask] = useState(false);
+  const [newTask, setNewTask] = useState("");
+
+  function toggleTask(i: number) {
+    setTasks((prev) => prev.map((tk, idx) => idx === i ? { ...tk, done: !tk.done } : tk));
+  }
+
+  function saveTask() {
+    if (!newTask.trim()) return;
+    setTasks((prev) => [...prev, { t: newTask.trim(), done: false, due: "—" }]);
+    setNewTask("");
+    setAddingTask(false);
+    toast.success("Tarea agregada");
+  }
+
+  const done = tasks.filter((tk) => tk.done).length;
+  const progress = Math.round((done / tasks.length) * 100);
 
   return (
     <>
@@ -53,14 +78,14 @@ export function ProjectDetail({ project, onBack }: { project: Project; onBack: (
         actions={
           <>
             <Pill variant={project.status} dot>{project.status}</Pill>
-            <Button><ExternalLink size={12} />Ver archivos</Button>
-            <Button variant="primary"><Plus size={14} />Nueva tarea</Button>
+            <Button onClick={() => filesRef.current?.scrollIntoView({ behavior: "smooth" })}><ExternalLink size={12} />Ver archivos</Button>
+            <Button variant="primary" onClick={() => setAddingTask(true)}><Plus size={14} />Nueva tarea</Button>
           </>
         }
       />
 
       <StatGrid>
-        <StatCard label="Progreso" value={project.progress} unit="%" extra={<div className="mt-2"><Progress value={project.progress} /></div>} />
+        <StatCard label="Progreso" value={progress} unit="%" extra={<div className="mt-2"><Progress value={progress} /></div>} />
         <StatCard label="Deadline" value={project.due} sub={`desde ${project.start}`} />
         <StatCard
           label="Owner"
@@ -83,11 +108,28 @@ export function ProjectDetail({ project, onBack }: { project: Project; onBack: (
           <Card>
             <CardHead>
               <CardTitle big icon={<CheckSquare size={14} />}>Tareas del proyecto</CardTitle>
+              <span className="text-[11.5px] text-[var(--color-text-muted)]">{done}/{tasks.length}</span>
             </CardHead>
-            {SAMPLE_TASKS.map((tk, i) => (
+
+            {addingTask && (
+              <div className="pb-3 mb-1 border-b border-[var(--color-border)] flex gap-2">
+                <input
+                  autoFocus
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveTask(); if (e.key === "Escape") { setAddingTask(false); setNewTask(""); } }}
+                  placeholder="Nombre de la tarea… (Enter para guardar)"
+                  className={MODAL_INPUT}
+                />
+                <button onClick={() => { setAddingTask(false); setNewTask(""); }} className="px-3 py-2 rounded-xl text-[12px] border border-[var(--color-border)] text-[var(--color-text-muted)] bg-transparent cursor-pointer">Cancelar</button>
+              </div>
+            )}
+
+            {tasks.map((tk, i) => (
               <div key={i} className="flex items-start gap-2.5 py-2.5 border-b border-[var(--color-border)] last:border-0">
                 <button
-                  className={`w-[18px] h-[18px] mt-0.5 rounded-md border grid place-items-center shrink-0 cursor-pointer ${
+                  onClick={() => toggleTask(i)}
+                  className={`w-[18px] h-[18px] mt-0.5 rounded-md border grid place-items-center shrink-0 cursor-pointer transition ${
                     tk.done ? "bg-[var(--color-primary)] border-[var(--color-primary)] text-white" : "border-[var(--color-border-2)] bg-transparent"
                   }`}
                 >
@@ -97,7 +139,7 @@ export function ProjectDetail({ project, onBack }: { project: Project; onBack: (
                   <div className={`text-[13px] ${tk.done ? "line-through text-[var(--color-text-dim)]" : "text-[var(--color-text)]"}`}>{tk.t}</div>
                   <div className="text-[11px] text-[var(--color-text-muted)] font-mono mt-0.5">Vence: {tk.due}</div>
                 </div>
-                {tk.current && <Pill variant="curso" dot>En curso</Pill>}
+                {"current" in tk && tk.current && !tk.done && <Pill variant="curso" dot>En curso</Pill>}
               </div>
             ))}
           </Card>
@@ -115,11 +157,11 @@ export function ProjectDetail({ project, onBack }: { project: Project; onBack: (
               </div>
             ))}
 
-            <div className="mt-5 pt-5 border-t border-[var(--color-border)]">
+            <div className="mt-5 pt-5 border-t border-[var(--color-border)]" ref={filesRef}>
               <CardTitle big icon={<Folder size={14} />}>Archivos</CardTitle>
               <div className="mt-3">
                 {FILES.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 py-2 border-b border-[var(--color-border)] last:border-0 text-[12.5px]">
+                  <div key={i} className="flex items-center gap-2 py-2 border-b border-[var(--color-border)] last:border-0 text-[12.5px] cursor-pointer hover:text-[var(--color-primary-hover)] transition" onClick={() => toast.info(`Abriendo ${f.n}…`)}>
                     <Folder size={14} />
                     <span className="flex-1">{f.n}</span>
                     <span className="font-mono text-[11px] text-[var(--color-text-muted)]">{f.s}</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   ListVideo,
   CheckCircle2,
@@ -47,6 +48,7 @@ interface QueueViewProps {
 }
 
 export function QueueView({ initialPosts = [] }: QueueViewProps) {
+  const router = useRouter();
   const [posts, setPosts] = useState<ContentPost[]>(initialPosts);
   const [statusFilter, setStatusFilter] = useState<ContentStatus | "all">("all");
   const [platformFilter, setPlatformFilter] = useState<ContentPlatform | "all">("all");
@@ -92,7 +94,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
         title="Queue"
         subtitle="Revisá, aprobá y programá tu contenido para publicación"
         actions={
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => router.push("/content/ai-studio")}>
             <Plus size={14} /> Nuevo post
           </Button>
         }
