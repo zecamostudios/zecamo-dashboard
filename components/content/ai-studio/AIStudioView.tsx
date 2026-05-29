@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Sparkles,
   RefreshCw,
@@ -45,6 +46,7 @@ export interface GenerationResult {
 }
 
 export function AIStudioView() {
+  const router = useRouter();
   const [studioTab, setStudioTab] = useState<StudioTab>("hook");
   const [platform, setPlatform] = useState<ContentPlatform>("linkedin");
   const [result, setResult] = useState<GenerationResult | null>(null);
@@ -218,7 +220,7 @@ export function AIStudioView() {
               <CardTitle big icon={<RefreshCw size={15} />}>
                 Generaciones recientes
               </CardTitle>
-              <Button variant="ghost" className="text-[11.5px] px-2 py-1">
+              <Button variant="ghost" className="text-[11.5px] px-2 py-1" onClick={() => router.push("/content/queue")}>
                 Ver todas <ChevronRight size={11} />
               </Button>
             </CardHead>

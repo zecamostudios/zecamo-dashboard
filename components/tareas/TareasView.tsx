@@ -44,14 +44,19 @@ export function TareasView({ initialTasks }: TareasViewProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterPrio, setFilterPrio] = useState<Priority | "">("");
+  const [filterOwner, setFilterOwner] = useState<OwnerId | "">("");
   const [form, setForm] = useState<TaskForm>({ titulo: "", prioridad: "media", owner: "JS", fechaLimite: "", status: "hacer" });
   const meId = "JS" as const;
   const supabase = createClient();
 
-  const filtered = useMemo(
-    () => (view === "mias" ? tasks.filter((t) => t.owner === meId) : tasks),
-    [tasks, view, meId],
-  );
+  const filtered = useMemo(() => {
+    let base = view === "mias" ? tasks.filter((t) => t.owner === meId) : tasks;
+    if (filterPrio) base = base.filter((t) => t.prio === filterPrio);
+    if (filterOwner) base = base.filter((t) => t.owner === filterOwner);
+    return base;
+  }, [tasks, view, meId, filterPrio, filterOwner]);
 
   const pending = filtered.filter((t) => t.status !== "hecho").length;
   const done    = filtered.filter((t) => t.status === "hecho").length;
@@ -150,13 +155,43 @@ export function TareasView({ initialTasks }: TareasViewProps) {
                 { value: "mias",   label: "Mis tareas" },
               ]}
             />
-            <Button><Filter size={13} />Filtros</Button>
+            <Button onClick={() => setShowFilters((v) => !v)}><Filter size={13} />Filtros{(filterPrio || filterOwner) ? " ●" : ""}</Button>
             <Button variant="primary" onClick={() => openNew()}>
               <Plus size={14} />Nueva tarea
             </Button>
           </>
         }
       />
+
+      {showFilters && (
+        <div className="mb-4 px-4 py-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] flex items-center gap-4 flex-wrap">
+          <span className="text-[11.5px] font-medium text-[var(--color-text-muted)] uppercase tracking-[0.06em]">Filtros</span>
+          <select
+            value={filterPrio}
+            onChange={(e) => setFilterPrio(e.target.value as Priority | "")}
+            className="rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition appearance-none"
+          >
+            <option value="">Todas las prioridades</option>
+            {PRIO_OPTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+          <select
+            value={filterOwner}
+            onChange={(e) => setFilterOwner(e.target.value as OwnerId | "")}
+            className="rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition appearance-none"
+          >
+            <option value="">Todos los owners</option>
+            {OWNERS.map((o) => <option key={o.id} value={o.id}>{o.short}</option>)}
+          </select>
+          {(filterPrio || filterOwner) && (
+            <button
+              onClick={() => { setFilterPrio(""); setFilterOwner(""); }}
+              className="text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-danger)] bg-transparent border-0 cursor-pointer transition"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      )}
 
       {view === "equipo" && (
         <div className="grid grid-cols-12 gap-[14px] mb-[14px]">

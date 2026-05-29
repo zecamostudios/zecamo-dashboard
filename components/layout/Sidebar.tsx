@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   Users,
@@ -45,6 +47,13 @@ interface SidebarProps {
 
 export function Sidebar({ tasksCount, prospectsCount }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
   const groups: NavGroup[] = [
     {
@@ -149,7 +158,7 @@ export function Sidebar({ tasksCount, prospectsCount }: SidebarProps) {
             <div className="text-[var(--color-text)] text-[12.5px] font-medium">Joaco Sánchez</div>
             <div className="text-[var(--color-text-dim)] text-[11px]">Founder · Zecamo</div>
           </div>
-          <button className="w-[26px] h-[26px] grid place-items-center bg-transparent border-0 text-[var(--color-text-dim)] cursor-pointer">
+          <button onClick={handleLogout} title="Cerrar sesión" className="w-[26px] h-[26px] grid place-items-center bg-transparent border-0 text-[var(--color-text-dim)] cursor-pointer hover:text-[var(--color-text)] transition">
             <ChevronUp size={14} />
           </button>
         </div>

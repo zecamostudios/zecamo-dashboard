@@ -14,6 +14,7 @@ import {
   Briefcase,
   Heart,
   Copy,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -42,6 +43,8 @@ export function AssetsView({ initialAssets = [] }: AssetsViewProps) {
   const [activeTab, setActiveTab] = useState<AssetType | "all">("all");
   const [search, setSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newForm, setNewForm] = useState({ nombre: "", tipo: "hook" as AssetType, contenido: "", tags: "" });
 
   const filtered = useMemo(() => {
     return assets.filter((a) => {
@@ -65,6 +68,24 @@ export function AssetsView({ initialAssets = [] }: AssetsViewProps) {
     });
   }
 
+  function createAsset() {
+    if (!newForm.nombre.trim()) return;
+    const asset: ContentAsset = {
+      id: `asset_${Date.now()}`,
+      nombre: newForm.nombre.trim(),
+      tipo: newForm.tipo,
+      contenido: newForm.contenido.trim() || undefined,
+      tags: newForm.tags ? newForm.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      uses: 0,
+      favorito: false,
+      created_at: new Date().toISOString(),
+    };
+    setAssets((prev) => [asset, ...prev]);
+    toast.success(`Asset "${asset.nombre}" creado`);
+    setShowNewModal(false);
+    setNewForm({ nombre: "", tipo: "hook", contenido: "", tags: "" });
+  }
+
   function copyAsset(asset: ContentAsset) {
     navigator.clipboard.writeText(asset.contenido ?? asset.nombre);
     toast.success("Copiado al portapapeles");
@@ -83,7 +104,7 @@ export function AssetsView({ initialAssets = [] }: AssetsViewProps) {
         title="Assets"
         subtitle="Tu biblioteca de hooks, CTAs, templates, brand kit e inspiración"
         actions={
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => setShowNewModal(true)}>
             <Plus size={14} /> Nuevo asset
           </Button>
         }
@@ -165,6 +186,73 @@ export function AssetsView({ initialAssets = [] }: AssetsViewProps) {
           Favoritos
         </button>
       </div>
+
+      {/* New asset modal */}
+      {showNewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowNewModal(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[15px] font-semibold">Nuevo asset</h2>
+              <button onClick={() => setShowNewModal(false)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer"><X size={16} /></button>
+            </div>
+            <div className="space-y-3.5">
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Nombre *</label>
+                <input
+                  autoFocus
+                  value={newForm.nombre}
+                  onChange={(e) => setNewForm((f) => ({ ...f, nombre: e.target.value }))}
+                  placeholder="Nombre del asset..."
+                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Tipo</label>
+                <select
+                  value={newForm.tipo}
+                  onChange={(e) => setNewForm((f) => ({ ...f, tipo: e.target.value as AssetType }))}
+                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition appearance-none"
+                >
+                  <option value="hook">Hook</option>
+                  <option value="cta">CTA</option>
+                  <option value="framework">Framework</option>
+                  <option value="template_carousel">Carrusel</option>
+                  <option value="logo">Logo</option>
+                  <option value="brand">Brand Kit</option>
+                  <option value="inspiracion">Inspiración</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Contenido</label>
+                <textarea
+                  rows={4}
+                  value={newForm.contenido}
+                  onChange={(e) => setNewForm((f) => ({ ...f, contenido: e.target.value }))}
+                  placeholder="Texto del hook, CTA o descripción..."
+                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Tags (separados por coma)</label>
+                <input
+                  value={newForm.tags}
+                  onChange={(e) => setNewForm((f) => ({ ...f, tags: e.target.value }))}
+                  placeholder="ventas, linkedin, authority..."
+                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setShowNewModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer hover:text-[var(--color-text)] transition">Cancelar</button>
+              <button onClick={createAsset} disabled={!newForm.nombre.trim()} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-50">Crear asset</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assets grid */}
       {filtered.length === 0 ? (

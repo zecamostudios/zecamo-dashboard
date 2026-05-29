@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { ExternalLink, Target, Clock, Sparkles, Globe } from "lucide-react";
+import { toast } from "sonner";
 import { OWNERS, STAGES, PROSPECTS, LINES } from "@/lib/mock-data";
 import type { FinancePoint, Prospect, StageId } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -116,6 +117,20 @@ export function AnaliticasView({ initialProspects }: AnaliticasViewProps) {
 
   void period;
 
+  function exportCSV() {
+    const headers = ["Nombre", "Stage", "Valor", "Owner", "Línea", "Fuente"];
+    const rows = allProspects.map((p) => [p.name, p.stage, p.value, p.owner, p.line, p.source]);
+    const csv = [headers, ...rows].map((r) => r.map(String).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "analiticas.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exportado");
+  }
+
   return (
     <>
       <PageHead
@@ -128,7 +143,7 @@ export function AnaliticasView({ initialProspects }: AnaliticasViewProps) {
               onChange={(v) => setPeriod(v as Period)}
               tabs={(["Mes", "3M", "6M", "YTD"] as const).map((r) => ({ value: r, label: r }))}
             />
-            <Button><ExternalLink size={12} />Exportar</Button>
+            <Button onClick={exportCSV}><ExternalLink size={12} />Exportar</Button>
           </>
         }
       />

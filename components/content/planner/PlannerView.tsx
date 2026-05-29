@@ -7,11 +7,13 @@ import {
   Plus,
   Globe,
   Send,
+  X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Chip } from "@/components/ui-zecamo/Chip";
-import type { ContentPlatform, PlannerSlot } from "@/lib/types";
+import type { ContentPlatform, PlannerSlot, ContentPost } from "@/lib/types";
 
 const DAYS_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const PLATFORM_ICON: Record<ContentPlatform, typeof Globe> = {
@@ -46,7 +48,10 @@ interface PlannerViewProps {
 export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [platformFilter, setPlatformFilter] = useState<ContentPlatform | "all">("all");
-  const [slots] = useState<PlannerSlot[]>(initialSlots);
+  const [slots, setSlots] = useState<PlannerSlot[]>(initialSlots);
+  const [showModal, setShowModal] = useState(false);
+  const [addForDate, setAddForDate] = useState("");
+  const [slotForm, setSlotForm] = useState({ plataforma: "linkedin" as ContentPlatform, hora: "", hook: "" });
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
 
@@ -70,6 +75,40 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
     return `${fmt(first)} — ${fmt(last)}`;
   }, [weekDates]);
 
+  function openModal(date?: string) {
+    setAddForDate(date ?? new Date().toISOString().slice(0, 10));
+    setSlotForm({ plataforma: "linkedin", hora: "", hook: "" });
+    setShowModal(true);
+  }
+
+  function addSlot() {
+    if (!slotForm.hook.trim()) return;
+    const now = new Date().toISOString();
+    const mockPost: ContentPost = {
+      id: `post_${Date.now()}`,
+      titulo: slotForm.hook,
+      plataforma: slotForm.plataforma,
+      tipo: "post",
+      estado: "borrador",
+      hook: slotForm.hook,
+      created_at: now,
+      updated_at: now,
+    };
+    const newSlot: PlannerSlot = {
+      id: `slot_${Date.now()}`,
+      post_id: mockPost.id,
+      plataforma: slotForm.plataforma,
+      fecha: addForDate,
+      hora: slotForm.hora || undefined,
+      estado: "borrador",
+      orden: slots.length,
+      post: mockPost,
+    };
+    setSlots((prev) => [...prev, newSlot]);
+    toast.success("Slot agregado al planner");
+    setShowModal(false);
+  }
+
   const isToday = (d: Date) => {
     const t = new Date();
     return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
@@ -81,7 +120,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
         title="Planner"
         subtitle="Organizá y programá tu contenido semana por semana"
         actions={
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => openModal()}>
             <Plus size={14} /> Agregar slot
           </Button>
         }
@@ -123,6 +162,61 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
           ))}
         </div>
       </div>
+
+      {/* Add slot modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[15px] font-semibold">Agregar slot · {addForDate}</h2>
+              <button onClick={() => setShowModal(false)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer"><X size={16} /></button>
+            </div>
+            <div className="space-y-3.5">
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Plataforma</label>
+                <select
+                  value={slotForm.plataforma}
+                  onChange={(e) => setSlotForm((f) => ({ ...f, plataforma: e.target.value as ContentPlatform }))}
+                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition appearance-none"
+                >
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="twitter">X / Twitter</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="facebook">Facebook</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Hora (opcional)</label>
+                <input
+                  type="time"
+                  value={slotForm.hora}
+                  onChange={(e) => setSlotForm((f) => ({ ...f, hora: e.target.value }))}
+                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Hook / título *</label>
+                <textarea
+                  autoFocus
+                  rows={3}
+                  value={slotForm.hook}
+                  onChange={(e) => setSlotForm((f) => ({ ...f, hook: e.target.value }))}
+                  placeholder="¿De qué trata este post?"
+                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer hover:text-[var(--color-text)] transition">Cancelar</button>
+              <button onClick={addSlot} disabled={!slotForm.hook.trim()} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-50">Agregar slot</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-2">
@@ -199,7 +293,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
                 })}
 
                 {/* Add slot button */}
-                <button className="mt-auto w-full py-2 rounded-xl border border-dashed border-[var(--color-border)] text-[var(--color-text-dim)] text-[11px] hover:border-[var(--color-border-2)] hover:text-[var(--color-text-muted)] transition cursor-pointer bg-transparent flex items-center justify-center gap-1">
+                <button onClick={() => openModal(dateKey)} className="mt-auto w-full py-2 rounded-xl border border-dashed border-[var(--color-border)] text-[var(--color-text-dim)] text-[11px] hover:border-[var(--color-border-2)] hover:text-[var(--color-text-muted)] transition cursor-pointer bg-transparent flex items-center justify-center gap-1">
                   <Plus size={11} /> Agregar
                 </button>
               </div>
