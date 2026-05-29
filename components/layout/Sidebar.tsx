@@ -21,6 +21,7 @@ import {
   ListVideo,
   Images,
   Workflow,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -43,9 +44,10 @@ interface NavGroup {
 interface SidebarProps {
   tasksCount?: number;
   prospectsCount?: number;
+  onClose?: () => void;
 }
 
-export function Sidebar({ tasksCount, prospectsCount }: SidebarProps) {
+export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -95,16 +97,25 @@ export function Sidebar({ tasksCount, prospectsCount }: SidebarProps) {
   ];
 
   return (
-    <aside className="bg-gradient-to-b from-[#06091A] to-[#080D1F] border-r border-[var(--color-border)] p-[18px_14px] flex flex-col gap-[14px] sticky top-0 h-screen overflow-y-auto">
+    <aside className="bg-gradient-to-b from-[#06091A] to-[#080D1F] border-r border-[var(--color-border)] p-[18px_14px] flex flex-col gap-[14px] h-screen overflow-y-auto w-[252px]">
       {/* Brand */}
       <div className="flex items-center gap-[11px] p-[4px_6px_14px] border-b border-[var(--color-border)]">
         <div className="w-[38px] h-[38px] rounded-[11px] grid place-items-center bg-gradient-to-br from-[var(--color-primary)] to-[#1A3FCC] shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_14px_rgba(43,91,255,0.45),0_0_0_1px_rgba(43,91,255,0.6)] relative overflow-hidden flex-shrink-0">
           <span className="font-[family-name:var(--font-display)] font-bold text-white text-[16px]">Z</span>
         </div>
-        <div className="leading-[1.15]">
+        <div className="leading-[1.15] flex-1 min-w-0">
           <div className="text-[var(--color-text)] font-[family-name:var(--font-display)] font-semibold text-[15px] tracking-tight">Zecamo Studios</div>
           <div className="text-[var(--color-text-dim)] text-[11px] font-mono mt-[2px] tracking-wider">DASHBOARD · v2</div>
         </div>
+        {/* Close button — mobile only */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden w-7 h-7 grid place-items-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer transition flex-shrink-0"
+          >
+            <X size={15} />
+          </button>
+        )}
       </div>
 
       {groups.map((g) => (

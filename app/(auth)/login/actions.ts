@@ -4,24 +4,34 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export async function loginAction(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const email = ((formData.get("email") as string) ?? "").trim();
+  const password = (formData.get("password") as string) ?? "";
+
+  if (!email || !password) {
+    redirect("/login?error=Completá+email+y+contraseña");
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    const msg =
+      error.message === "Invalid login credentials"
+        ? "Email o contraseña incorrectos"
+        : error.message === "Invalid input"
+        ? "Datos inválidos — revisá el email y la contraseña"
+        : error.message;
+    redirect(`/login?error=${encodeURIComponent(msg)}`);
   }
 
   redirect("/");
 }
 
 export async function magicLinkAction(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = ((formData.get("email") as string) ?? "").trim();
 
   if (!email || !email.includes("@")) {
-    redirect("/login?error=Email+inválido");
+    redirect("/login?error=Ingresá+un+email+válido");
   }
 
   const supabase = await createClient();
