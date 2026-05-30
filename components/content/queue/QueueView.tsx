@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ListVideo,
@@ -519,27 +520,21 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
               )}
 
               {/* Scores */}
-              {(detailPost.ai_score != null || detailPost.quality_score != null) && (
+              {(detailPost.ai_score != null || (detailPost.ai_score_breakdown && Object.keys(detailPost.ai_score_breakdown).length > 0)) && (
                 <section>
                   <SectionLabel icon={<BarChart3 size={11} />} label="Puntuaciones IA" />
                   <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: "AI Score",   value: detailPost.ai_score },
-                      { label: "Calidad",    value: detailPost.quality_score },
-                      { label: "Hook",       value: detailPost.hook_score },
-                      { label: "Claridad",   value: detailPost.clarity_score },
-                      { label: "CTA",        value: detailPost.cta_score },
-                    ].filter((s) => s.value != null).map((s) => (
-                      <div
-                        key={s.label}
-                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-center"
-                      >
-                        <p className="text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-dim)] mb-1 font-medium">
-                          {s.label}
-                        </p>
-                        <p className="text-[20px] font-[family-name:var(--font-display)] font-medium leading-none text-[var(--color-success)]">
-                          {s.value}
-                        </p>
+                    {detailPost.ai_score != null && (
+                      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-center">
+                        <p className="text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-dim)] mb-1 font-medium">AI Score</p>
+                        <p className="text-[20px] font-[family-name:var(--font-display)] font-medium leading-none text-[var(--color-success)]">{detailPost.ai_score}</p>
+                        <p className="text-[10px] text-[var(--color-text-dim)] mt-0.5">/10</p>
+                      </div>
+                    )}
+                    {detailPost.ai_score_breakdown && Object.entries(detailPost.ai_score_breakdown).map(([key, val]) => (
+                      <div key={key} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-center">
+                        <p className="text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-dim)] mb-1 font-medium capitalize">{key.replace(/_/g, " ")}</p>
+                        <p className="text-[20px] font-[family-name:var(--font-display)] font-medium leading-none text-[var(--color-success)]">{val}</p>
                         <p className="text-[10px] text-[var(--color-text-dim)] mt-0.5">/10</p>
                       </div>
                     ))}
@@ -557,23 +552,19 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                 </section>
               )}
 
-              {/* Meta + tokens */}
+              {/* Meta */}
               <section>
                 <SectionLabel label="Metadata" />
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  {[
-                    { label: "Modelo",    value: detailPost.modelo },
-                    { label: "Tokens in", value: detailPost.tokens_in != null ? String(detailPost.tokens_in) : undefined },
-                    { label: "Tokens out",value: detailPost.tokens_out != null ? String(detailPost.tokens_out) : undefined },
-                    { label: "Costo USD", value: detailPost.estimated_cost != null ? `$${Number(detailPost.estimated_cost).toFixed(5)}` : undefined },
-                    { label: "Pilar",     value: detailPost.pillar },
-                    { label: "Objetivo",  value: detailPost.objetivo },
-                    { label: "Creado",    value: new Date(detailPost.created_at).toLocaleString("es-AR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
-                    { label: "Versión",   value: detailPost.version != null ? `v${detailPost.version}` : undefined },
-                  ].filter((r) => r.value).map((r) => (
+                  {([
+                    { label: "Pilar",   value: detailPost.pillar },
+                    { label: "Versión", value: detailPost.version != null ? `v${detailPost.version}` : undefined },
+                    { label: "Creado",  value: new Date(detailPost.created_at).toLocaleString("es-AR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
+                    { label: "ID",      value: detailPost.id },
+                  ] as { label: string; value: string | undefined }[]).filter((r) => r.value).map((r) => (
                     <div key={r.label}>
                       <p className="text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-dim)] mb-0.5 font-medium">{r.label}</p>
-                      <p className="text-[12.5px] text-[var(--color-text-muted)] font-mono">{r.value}</p>
+                      <p className="text-[12.5px] text-[var(--color-text-muted)] font-mono break-all">{r.value}</p>
                     </div>
                   ))}
                 </div>
@@ -692,7 +683,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
   );
 }
 
-function SectionLabel({ label, icon }: { label: string; icon?: React.ReactNode }) {
+function SectionLabel({ label, icon }: { label: string; icon?: ReactNode }) {
   return (
     <div className="flex items-center gap-1.5 mb-2">
       {icon && <span className="text-[var(--color-text-dim)]">{icon}</span>}
