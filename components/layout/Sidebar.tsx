@@ -22,6 +22,7 @@ import {
   Images,
   Workflow,
   Brain,
+  Cpu,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -81,13 +82,14 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
     {
       label: "Content OS",
       items: [
-        { href: "/content/ai-studio", label: "AI Studio", icon: Sparkles, dot: true },
-        { href: "/content/queue", label: "Queue", icon: ListVideo },
-        { href: "/content/planner", label: "Planner", icon: CalendarDays },
-        { href: "/content/assets", label: "Assets", icon: Images },
-        { href: "/content/analytics", label: "Analytics", icon: BarChart3 },
+        { href: "/content/ai-studio",   label: "AI Studio",   icon: Sparkles,  dot: true },
+        { href: "/content/queue",        label: "Queue",        icon: ListVideo },
+        { href: "/content/planner",      label: "Planner",      icon: CalendarDays },
+        { href: "/content/assets",       label: "Assets",       icon: Images },
+        { href: "/content/analytics",    label: "Analytics",    icon: BarChart3 },
         { href: "/content/automations",  label: "Automations",  icon: Workflow },
         { href: "/content/brand-memory", label: "Brand Memory", icon: Brain },
+        { href: "/content/ai-settings",  label: "AI Settings",  icon: Cpu },
       ],
     },
     {

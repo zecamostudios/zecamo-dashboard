@@ -1,31 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/supabase/auth-guard";
+import { triggerAutomation } from "@/lib/services/automation/automation-service";
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const supabase = await createClient();
-  const { automation_id } = await req.json();
+  try {
+    const { automation_id, payload } = await req.json();
+    if (!automation_id) {
+      return NextResponse.json({ error: "automation_id requerido" }, { status: 400 });
+    }
 
-  const { data, error } = await supabase
-    .from("content_automation_runs")
-    .insert({
-      nombre: automation_id,
-      tipo: "manual",
-      estado: "pending",
-      iniciado_en: new Date().toISOString(),
-    })
-    .select()
-    .single();
+    const result = await triggerAutomation(
+      automation_id,
+      { ...payload, triggered_by: auth.userId },
+    );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const n8nWebhook = process.env.N8N_WEBHOOK_URL;
-  if (n8nWebhook) {
-    await fetch(`${n8nWebhook}/${automation_id}`, { method: "POST" }).catch(() => {});
+    return NextResponse.json({
+      run:         result.run,
+      webhookSent: result.webhookSent,
+      webhookError:result.webhookError,
+    });
+  } catch (err) {
+    console.error("[automations/trigger]", err);
+    return NextResponse.json({ error: "Error al disparar automatización" }, { status: 500 });
   }
-
-  return NextResponse.json({ run: data });
 }

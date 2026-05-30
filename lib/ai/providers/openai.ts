@@ -1,14 +1,12 @@
 /**
  * OpenAIProvider — production provider.
  * Becomes active automatically when OPENAI_API_KEY is set.
- * No changes needed when adding the key later.
+ * Accepts per-request config overrides (model, temperature, maxTokens).
  */
 import OpenAI from "openai";
 import type { AIProvider, GenerationRequest, GenerationResponse, ScoringResponse } from "./base";
+import { getDefaultAIConfig, estimateCost, type AIConfig } from "@/lib/ai/ai-config";
 import type { AIGenerationType, ContentPlatform } from "@/lib/types";
-
-const PRIMARY_MODEL  = "gpt-4o";
-const FALLBACK_MODEL = "gpt-4o-mini";
 
 const SYSTEM_PROMPT = `Sos un experto en marketing de contenidos para LinkedIn, X/Twitter e Instagram para agencias y consultoras de automatización e IA.
 Tu objetivo: generar contenido que interrumpa el scroll, construya autoridad y genere acción.
@@ -35,8 +33,16 @@ JSON: { "original_issues": ["problema1"], "rewritten": "texto mejorado", "improv
 const SCORE_SYSTEM = `Sos un experto evaluador de contenido para redes sociales. Evaluá el contenido dado en una escala del 1 al 10.
 Respondé con JSON: { "score": número, "feedback": "análisis en 2 oraciones", "breakdown": { "hook": número, "clarity": número, "cta": número, "engagement": número } }`;
 
+export interface UsageRecord {
+  model:        string;
+  inputTokens:  number;
+  outputTokens: number;
+  totalTokens:  number;
+  estimatedCostUSD: number;
+}
+
 export class OpenAIProvider implements AIProvider {
-  readonly name = "openai";
+  readonly name   = "openai";
   readonly isMock = false;
 
   private client(): OpenAI {
@@ -44,42 +50,72 @@ export class OpenAIProvider implements AIProvider {
     return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   }
 
-  private async call(model: string, system: string, user: string): Promise<OpenAI.Chat.ChatCompletion> {
+  private getConfig(override?: Partial<AIConfig>): AIConfig {
+    const defaults = getDefaultAIConfig();
+    return { ...defaults, ...override };
+  }
+
+  private async call(
+    model: string,
+    system: string,
+    user: string,
+    temperature: number,
+    maxTokens: number,
+  ): Promise<OpenAI.Chat.ChatCompletion> {
     return this.client().chat.completions.create({
       model,
-      max_tokens: 2048,
+      max_tokens:      maxTokens,
+      temperature,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
-        { role: "user",   content: user },
+        { role: "user",   content: user   },
       ],
     });
   }
 
-  async generate(req: GenerationRequest): Promise<GenerationResponse> {
+  async generate(
+    req: GenerationRequest,
+    configOverride?: Partial<AIConfig>,
+  ): Promise<GenerationResponse & { usage?: UsageRecord }> {
+    const cfg = this.getConfig(configOverride);
     const { tipo, plataforma, prompt, context } = req;
     const charLimit = context.charLimit ?? 3000;
+
     const userMsg = [
       `Plataforma: ${plataforma} (límite: ${charLimit} chars)`,
       `Tono: ${context.tono ?? "profesional-directo"}`,
-      context.contexto ? `Contexto: ${context.contexto}` : null,
+      context.contexto    ? `Contexto: ${context.contexto}` : null,
       context.brandMemory ? `Memoria de marca:\n${context.brandMemory}` : null,
       ``,
       `Tema/Prompt: ${prompt}`,
     ].filter(Boolean).join("\n");
 
     const system = SYSTEM_PROMPT + "\n\n" + TYPE_INSTRUCTIONS[tipo];
+
     let completion: OpenAI.Chat.ChatCompletion;
-    let model = PRIMARY_MODEL;
+    let model = cfg.model;
+
     try {
-      completion = await this.call(PRIMARY_MODEL, system, userMsg);
+      completion = await this.call(model, system, userMsg, cfg.temperature, cfg.maxTokens);
     } catch {
-      completion = await this.call(FALLBACK_MODEL, system, userMsg);
-      model = FALLBACK_MODEL;
+      model = "gpt-4o-mini";
+      completion = await this.call(model, system, userMsg, cfg.temperature, cfg.maxTokens);
     }
 
-    const raw = completion.choices[0]?.message?.content ?? "";
-    const tokens = (completion.usage?.prompt_tokens ?? 0) + (completion.usage?.completion_tokens ?? 0);
+    const raw  = completion.choices[0]?.message?.content ?? "";
+    const inputTokens  = completion.usage?.prompt_tokens     ?? 0;
+    const outputTokens = completion.usage?.completion_tokens ?? 0;
+    const totalTokens  = inputTokens + outputTokens;
+
+    const usage: UsageRecord = {
+      model,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      estimatedCostUSD: estimateCost(model, inputTokens, outputTokens),
+    };
+
     let parsed: Record<string, unknown>;
     try {
       parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw);
@@ -87,10 +123,15 @@ export class OpenAIProvider implements AIProvider {
       parsed = { content: raw };
     }
 
-    return this._normalize(tipo, parsed, tokens, model);
+    return { ...this._normalize(tipo, parsed, totalTokens, model), usage };
   }
 
-  private _normalize(tipo: AIGenerationType, p: Record<string, unknown>, tokens: number, model: string): GenerationResponse {
+  private _normalize(
+    tipo: AIGenerationType,
+    p: Record<string, unknown>,
+    tokens: number,
+    model: string,
+  ): GenerationResponse {
     if (tipo === "hook") {
       const hooks = (p.hooks as string[]) ?? [];
       const best  = Number(p.best ?? 0);
@@ -113,9 +154,15 @@ export class OpenAIProvider implements AIProvider {
     };
   }
 
-  async score(content: string, tipo: AIGenerationType, plataforma: ContentPlatform): Promise<ScoringResponse> {
+  async score(
+    content: string,
+    tipo: AIGenerationType,
+    plataforma: ContentPlatform,
+    configOverride?: Partial<AIConfig>,
+  ): Promise<ScoringResponse> {
+    const cfg = this.getConfig(configOverride);
     const userMsg = `Plataforma: ${plataforma}\nTipo: ${tipo}\n\nContenido:\n${content}`;
-    const completion = await this.call(PRIMARY_MODEL, SCORE_SYSTEM, userMsg);
+    const completion = await this.call(cfg.model, SCORE_SYSTEM, userMsg, 0.3, 512);
     const raw = completion.choices[0]?.message?.content ?? "{}";
     try {
       const p = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw) as ScoringResponse;
