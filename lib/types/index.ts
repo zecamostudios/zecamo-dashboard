@@ -183,6 +183,7 @@ export interface ContentPost {
   estado: ContentStatus;
   ai_score?: number;
   ai_feedback?: string;
+  ai_score_breakdown?: Record<string, number>;
   hook?: string;
   cta?: string;
   hashtags?: string[];
@@ -191,6 +192,13 @@ export interface ContentPost {
   publicado_en?: string;
   creado_por?: string;
   aprobado_por?: string;
+  notas?: string;
+  rejected_reason?: string;
+  generation_id?: string;
+  version: number;
+  external_id?: string;
+  pillar?: string;
+  word_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -241,6 +249,79 @@ export interface AIGeneration {
   tokens_in?: number;
   tokens_out?: number;
   post_id?: string;
+  created_at: string;
+}
+
+// ============================================================
+// Content OS — Brand Memory, Publishing, Analytics, Workflow
+// ============================================================
+
+export interface BrandMemory {
+  id: string;
+  categoria: string;
+  clave: string;
+  valor: string;
+  activo: boolean;
+  orden: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PublishingJobStatus = "pending" | "processing" | "success" | "error" | "cancelled";
+
+export interface PublishingJob {
+  id: string;
+  post_id: string;
+  platform_account_id: string;
+  estado: PublishingJobStatus;
+  programado_para?: string;
+  procesado_en?: string;
+  external_id?: string;
+  error_msg?: string;
+  intentos: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformAccount {
+  id: string;
+  plataforma: ContentPlatform;
+  nombre: string;
+  handle?: string;
+  access_token?: string;
+  refresh_token?: string;
+  token_expires_at?: string;
+  activo: boolean;
+  is_mock: boolean;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AnalyticsSnapshot {
+  id: string;
+  post_id: string;
+  fecha: string;
+  impressions: number;
+  reach: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  clicks: number;
+  engagement_rate: number;
+  platform_data?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface WorkflowEvent {
+  id: string;
+  entidad_tipo: string;
+  entidad_id: string;
+  evento: string;
+  estado_anterior?: string;
+  estado_nuevo?: string;
+  actor?: string;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 

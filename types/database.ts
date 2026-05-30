@@ -648,6 +648,7 @@ export interface Database {
           estado: string;
           ai_score: number | null;
           ai_feedback: string | null;
+          ai_score_breakdown: Record<string, number> | null;
           hook: string | null;
           cta: string | null;
           hashtags: string[] | null;
@@ -656,6 +657,13 @@ export interface Database {
           publicado_en: string | null;
           creado_por: string | null;
           aprobado_por: string | null;
+          notas: string | null;
+          rejected_reason: string | null;
+          generation_id: string | null;
+          version: number;
+          external_id: string | null;
+          pillar: string | null;
+          word_count: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -668,6 +676,7 @@ export interface Database {
           estado?: string;
           ai_score?: number | null;
           ai_feedback?: string | null;
+          ai_score_breakdown?: Record<string, number> | null;
           hook?: string | null;
           cta?: string | null;
           hashtags?: string[] | null;
@@ -676,6 +685,13 @@ export interface Database {
           publicado_en?: string | null;
           creado_por?: string | null;
           aprobado_por?: string | null;
+          notas?: string | null;
+          rejected_reason?: string | null;
+          generation_id?: string | null;
+          version?: number;
+          external_id?: string | null;
+          pillar?: string | null;
+          word_count?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -687,6 +703,7 @@ export interface Database {
           estado?: string;
           ai_score?: number | null;
           ai_feedback?: string | null;
+          ai_score_breakdown?: Record<string, number> | null;
           hook?: string | null;
           cta?: string | null;
           hashtags?: string[] | null;
@@ -694,6 +711,13 @@ export interface Database {
           programado_para?: string | null;
           publicado_en?: string | null;
           aprobado_por?: string | null;
+          notas?: string | null;
+          rejected_reason?: string | null;
+          generation_id?: string | null;
+          version?: number;
+          external_id?: string | null;
+          pillar?: string | null;
+          word_count?: number | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -831,6 +855,190 @@ export interface Database {
           resultado?: Record<string, unknown> | null;
           error_msg?: string | null;
           finalizado_en?: string | null;
+        };
+        Relationships: [];
+      };
+      brand_memory: {
+        Row: {
+          id: string;
+          categoria: string;
+          clave: string;
+          valor: string;
+          activo: boolean;
+          orden: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          categoria: string;
+          clave: string;
+          valor: string;
+          activo?: boolean;
+          orden?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          categoria?: string;
+          clave?: string;
+          valor?: string;
+          activo?: boolean;
+          orden?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      analytics_snapshots: {
+        Row: {
+          id: string;
+          post_id: string;
+          fecha: string;
+          impressions: number;
+          reach: number;
+          likes: number;
+          comments: number;
+          shares: number;
+          clicks: number;
+          engagement_rate: number;
+          platform_data: Record<string, unknown> | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          fecha: string;
+          impressions?: number;
+          reach?: number;
+          likes?: number;
+          comments?: number;
+          shares?: number;
+          clicks?: number;
+          engagement_rate?: number;
+          platform_data?: Record<string, unknown> | null;
+          created_at?: string;
+        };
+        Update: {
+          impressions?: number;
+          reach?: number;
+          likes?: number;
+          comments?: number;
+          shares?: number;
+          clicks?: number;
+          engagement_rate?: number;
+          platform_data?: Record<string, unknown> | null;
+        };
+        Relationships: [];
+      };
+      platform_accounts: {
+        Row: {
+          id: string;
+          plataforma: string;
+          nombre: string;
+          handle: string | null;
+          access_token: string | null;
+          refresh_token: string | null;
+          token_expires_at: string | null;
+          activo: boolean;
+          is_mock: boolean;
+          metadata: Record<string, unknown> | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          plataforma: string;
+          nombre: string;
+          handle?: string | null;
+          access_token?: string | null;
+          refresh_token?: string | null;
+          token_expires_at?: string | null;
+          activo?: boolean;
+          is_mock?: boolean;
+          metadata?: Record<string, unknown> | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          nombre?: string;
+          handle?: string | null;
+          access_token?: string | null;
+          refresh_token?: string | null;
+          token_expires_at?: string | null;
+          activo?: boolean;
+          is_mock?: boolean;
+          metadata?: Record<string, unknown> | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      publishing_jobs: {
+        Row: {
+          id: string;
+          post_id: string;
+          platform_account_id: string;
+          estado: "pending" | "processing" | "success" | "error" | "cancelled";
+          programado_para: string | null;
+          procesado_en: string | null;
+          external_id: string | null;
+          error_msg: string | null;
+          intentos: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          platform_account_id: string;
+          estado?: "pending" | "processing" | "success" | "error" | "cancelled";
+          programado_para?: string | null;
+          procesado_en?: string | null;
+          external_id?: string | null;
+          error_msg?: string | null;
+          intentos?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          estado?: "pending" | "processing" | "success" | "error" | "cancelled";
+          programado_para?: string | null;
+          procesado_en?: string | null;
+          external_id?: string | null;
+          error_msg?: string | null;
+          intentos?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      workflow_events: {
+        Row: {
+          id: string;
+          entidad_tipo: string;
+          entidad_id: string;
+          evento: string;
+          estado_anterior: string | null;
+          estado_nuevo: string | null;
+          actor: string | null;
+          metadata: Record<string, unknown> | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entidad_tipo: string;
+          entidad_id: string;
+          evento: string;
+          estado_anterior?: string | null;
+          estado_nuevo?: string | null;
+          actor?: string | null;
+          metadata?: Record<string, unknown> | null;
+          created_at?: string;
+        };
+        Update: {
+          evento?: string;
+          estado_anterior?: string | null;
+          estado_nuevo?: string | null;
+          actor?: string | null;
+          metadata?: Record<string, unknown> | null;
         };
         Relationships: [];
       };

@@ -91,6 +91,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
       tipo: "post",
       estado: "borrador",
       hook: slotForm.hook,
+      version: 1,
       created_at: now,
       updated_at: now,
     };
