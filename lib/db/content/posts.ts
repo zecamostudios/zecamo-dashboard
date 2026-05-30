@@ -24,8 +24,8 @@ export async function getQueuePosts(): Promise<ContentPost[]> {
   const { data } = await supabase
     .from("content_posts")
     .select("*")
-    .in("estado", ["revision", "aprobado", "programado"])
-    .order("programado_para", { ascending: true });
+    .in("estado", ["borrador", "revision", "aprobado", "programado"])
+    .order("created_at", { ascending: false });
   return (data ?? []) as ContentPost[];
 }
 
