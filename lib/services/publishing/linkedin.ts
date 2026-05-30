@@ -1,21 +1,20 @@
 import type { ContentPost, PlatformAccount } from "@/lib/types";
 import type { PublishingAdapter, PublishResult } from "./base";
-import { MockPublishingAdapter } from "./mock";
+import { zernioPublish, ZERNIO_ACCOUNTS } from "./zernio";
 
 export class LinkedInAdapter implements PublishingAdapter {
   readonly platform = "linkedin";
-  readonly isMock: boolean;
-  private mock: MockPublishingAdapter;
+  readonly isMock = false;
 
-  constructor() {
-    this.isMock = true; // real API integration pending
-    this.mock = new MockPublishingAdapter("linkedin");
-  }
+  async publish(post: ContentPost, _account: PlatformAccount): Promise<PublishResult> {
+    const mediaItems = post.media_urls?.map((url) => ({ type: "image" as const, url }));
 
-  async publish(post: ContentPost, account: PlatformAccount): Promise<PublishResult> {
-    if (this.isMock || account.is_mock) return this.mock.publish(post, account);
-    // Real LinkedIn API integration goes here
-    throw new Error("LinkedIn API not configured");
+    return zernioPublish({
+      content: buildLinkedInContent(post),
+      platforms: [{ platform: "linkedin", accountId: ZERNIO_ACCOUNTS.linkedin }],
+      ...(mediaItems?.length ? { mediaItems } : {}),
+      publishNow: true,
+    });
   }
 
   validate(post: ContentPost): { valid: boolean; errors: string[] } {
@@ -24,4 +23,15 @@ export class LinkedInAdapter implements PublishingAdapter {
     if ((post.contenido?.length ?? 0) > 3000) errors.push("Supera el límite de 3000 caracteres");
     return { valid: errors.length === 0, errors };
   }
+}
+
+function buildLinkedInContent(post: ContentPost): string {
+  const parts: string[] = [];
+  if (post.hook)     parts.push(post.hook);
+  if (post.contenido) parts.push(post.contenido);
+  if (post.cta)      parts.push(`\n${post.cta}`);
+  if (post.hashtags?.length) {
+    parts.push(`\n${post.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")}`);
+  }
+  return parts.join("\n\n");
 }
