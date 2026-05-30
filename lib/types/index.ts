@@ -236,7 +236,7 @@ export interface PlannerSlot {
   plataforma: ContentPlatform;
   estado: string;
   orden: number;
-  tipo: PlannerEventType;
+  tipo?: PlannerEventType;
   post?: ContentPost;
 }
 
