@@ -17,6 +17,11 @@ import {
   ChevronUp,
   Trash2,
   Globe,
+  X,
+  Hash,
+  Zap,
+  MessageSquare,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -63,6 +68,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
   const [scheduleTime, setScheduleTime] = useState("09:00");
   const [expandedEvents, setExpandedEvents] = useState<string | null>(null);
   const [eventsCache, setEventsCache] = useState<Record<string, WorkflowEvent[]>>({});
+  const [detailPost, setDetailPost] = useState<ContentPost | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -82,6 +88,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
 
   async function transition(id: string, from: ContentStatus, to: ContentStatus) {
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, estado: to } : p));
+    if (detailPost?.id === id) setDetailPost((d) => d ? { ...d, estado: to } : d);
     const res = await fetch("/api/content/workflow", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -90,6 +97,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: "Error" }));
       setPosts((prev) => prev.map((p) => p.id === id ? { ...p, estado: from } : p));
+      if (detailPost?.id === id) setDetailPost((d) => d ? { ...d, estado: from } : d);
       toast.error(error ?? "Error al cambiar estado");
     }
   }
@@ -117,6 +125,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
   async function deletePost(post: ContentPost) {
     const prev = posts;
     setPosts((p) => p.filter((x) => x.id !== post.id));
+    if (detailPost?.id === post.id) setDetailPost(null);
     const res = await fetch(`/api/content/posts/${post.id}`, { method: "DELETE" });
     if (!res.ok) {
       setPosts(prev);
@@ -267,11 +276,19 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
               >
                 <div className="p-5 group">
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-[var(--color-border)] grid place-items-center shrink-0">
+                    {/* Clickable area — opens detail modal */}
+                    <button
+                      onClick={() => setDetailPost(post)}
+                      className="w-10 h-10 rounded-xl bg-white/[0.04] border border-[var(--color-border)] grid place-items-center shrink-0 cursor-pointer hover:border-[var(--color-primary-hover)] transition-colors"
+                      title="Ver detalle"
+                    >
                       <Send size={16} className={PLATFORM_COLORS[post.plataforma]} />
-                    </div>
+                    </button>
 
-                    <div className="flex-1 min-w-0">
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => setDetailPost(post)}
+                    >
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span className="text-[11.5px] font-medium text-[var(--color-text-muted)]">
                           {PLATFORM_LABEL[post.plataforma]}
@@ -417,6 +434,210 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
         </div>
       )}
 
+      {/* Post detail modal */}
+      {detailPost && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-end bg-black/60"
+          onClick={(e) => { if (e.target === e.currentTarget) setDetailPost(null); }}
+        >
+          <div className="relative h-full w-full max-w-[560px] bg-[var(--color-surface-2)] border-l border-[var(--color-border-2)] flex flex-col overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-[var(--color-border)] grid place-items-center">
+                  <Send size={14} className={PLATFORM_COLORS[detailPost.plataforma]} />
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold leading-none mb-0.5">
+                    {PLATFORM_LABEL[detailPost.plataforma]}
+                  </p>
+                  <p className="text-[11px] text-[var(--color-text-dim)] font-mono">{detailPost.tipo}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Pill variant={STATUS_PILL[detailPost.estado].variant as "active"}>
+                  {STATUS_PILL[detailPost.estado].label}
+                </Pill>
+                <button
+                  onClick={() => setDetailPost(null)}
+                  className="w-8 h-8 rounded-lg border border-[var(--color-border)] grid place-items-center text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] hover:border-[var(--color-border-2)] transition"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+
+              {/* Hook */}
+              {detailPost.hook && (
+                <section>
+                  <SectionLabel icon={<Zap size={11} />} label="Hook" />
+                  <p className="text-[13.5px] font-medium leading-relaxed">{detailPost.hook}</p>
+                </section>
+              )}
+
+              {/* Contenido */}
+              <section>
+                <SectionLabel icon={<MessageSquare size={11} />} label="Contenido" />
+                <p className="text-[13px] text-[var(--color-text-muted)] leading-relaxed whitespace-pre-wrap">
+                  {detailPost.contenido}
+                </p>
+              </section>
+
+              {/* CTA */}
+              {detailPost.cta && (
+                <section>
+                  <SectionLabel icon={<Send size={11} />} label="CTA" />
+                  <p className="text-[13px] text-[var(--color-text-muted)] leading-relaxed">{detailPost.cta}</p>
+                </section>
+              )}
+
+              {/* Hashtags */}
+              {detailPost.hashtags && detailPost.hashtags.length > 0 && (
+                <section>
+                  <SectionLabel icon={<Hash size={11} />} label="Hashtags" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {detailPost.hashtags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-block px-2.5 py-0.5 rounded-full text-[11.5px] font-mono bg-[rgba(43,91,255,0.08)] text-[var(--color-primary-hover)] border border-[rgba(43,91,255,0.15)]"
+                      >
+                        #{tag.replace(/^#/, "")}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Scores */}
+              {(detailPost.ai_score != null || detailPost.quality_score != null) && (
+                <section>
+                  <SectionLabel icon={<BarChart3 size={11} />} label="Puntuaciones IA" />
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: "AI Score",   value: detailPost.ai_score },
+                      { label: "Calidad",    value: detailPost.quality_score },
+                      { label: "Hook",       value: detailPost.hook_score },
+                      { label: "Claridad",   value: detailPost.clarity_score },
+                      { label: "CTA",        value: detailPost.cta_score },
+                    ].filter((s) => s.value != null).map((s) => (
+                      <div
+                        key={s.label}
+                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-center"
+                      >
+                        <p className="text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-dim)] mb-1 font-medium">
+                          {s.label}
+                        </p>
+                        <p className="text-[20px] font-[family-name:var(--font-display)] font-medium leading-none text-[var(--color-success)]">
+                          {s.value}
+                        </p>
+                        <p className="text-[10px] text-[var(--color-text-dim)] mt-0.5">/10</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* AI Feedback */}
+              {detailPost.ai_feedback && (
+                <section>
+                  <SectionLabel icon={<Sparkles size={11} />} label="Feedback IA" />
+                  <p className="text-[12.5px] text-[var(--color-text-muted)] leading-relaxed italic">
+                    {detailPost.ai_feedback}
+                  </p>
+                </section>
+              )}
+
+              {/* Meta + tokens */}
+              <section>
+                <SectionLabel label="Metadata" />
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  {[
+                    { label: "Modelo",    value: detailPost.modelo },
+                    { label: "Tokens in", value: detailPost.tokens_in != null ? String(detailPost.tokens_in) : undefined },
+                    { label: "Tokens out",value: detailPost.tokens_out != null ? String(detailPost.tokens_out) : undefined },
+                    { label: "Costo USD", value: detailPost.estimated_cost != null ? `$${Number(detailPost.estimated_cost).toFixed(5)}` : undefined },
+                    { label: "Pilar",     value: detailPost.pillar },
+                    { label: "Objetivo",  value: detailPost.objetivo },
+                    { label: "Creado",    value: new Date(detailPost.created_at).toLocaleString("es-AR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
+                    { label: "Versión",   value: detailPost.version != null ? `v${detailPost.version}` : undefined },
+                  ].filter((r) => r.value).map((r) => (
+                    <div key={r.label}>
+                      <p className="text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-dim)] mb-0.5 font-medium">{r.label}</p>
+                      <p className="text-[12.5px] text-[var(--color-text-muted)] font-mono">{r.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            {/* Footer actions */}
+            <div className="px-6 py-4 border-t border-[var(--color-border)] shrink-0 flex flex-wrap gap-2">
+              <button
+                onClick={() => duplicatePost(detailPost)}
+                className="h-8 px-3 rounded-lg border border-[var(--color-border)] bg-white/[0.03] text-[11.5px] font-medium text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] transition flex items-center gap-1.5"
+              >
+                <Copy size={12} /> Duplicar
+              </button>
+              <button
+                onClick={() => deletePost(detailPost)}
+                className="h-8 px-3 rounded-lg border border-[rgba(255,84,102,0.2)] bg-transparent text-[11.5px] font-medium text-[var(--color-danger)] cursor-pointer hover:bg-[rgba(255,84,102,0.08)] transition flex items-center gap-1.5"
+              >
+                <Trash2 size={12} /> Eliminar
+              </button>
+
+              <div className="flex-1" />
+
+              {detailPost.estado === "borrador" && (
+                <button
+                  onClick={() => submitForReview(detailPost)}
+                  className="h-8 px-3 rounded-lg border border-[rgba(240,168,42,0.3)] bg-[rgba(240,168,42,0.08)] text-[11.5px] font-medium text-[var(--color-warning)] cursor-pointer hover:bg-[rgba(240,168,42,0.14)] transition flex items-center gap-1.5"
+                >
+                  <Eye size={12} /> Enviar a revisión
+                </button>
+              )}
+
+              {detailPost.estado === "revision" && (
+                <>
+                  <button
+                    onClick={() => rejectPost(detailPost)}
+                    className="h-8 px-3 rounded-lg border border-[rgba(255,84,102,0.3)] bg-[rgba(255,84,102,0.08)] text-[11.5px] font-medium text-[var(--color-danger)] cursor-pointer hover:bg-[rgba(255,84,102,0.14)] transition flex items-center gap-1.5"
+                  >
+                    <XCircle size={12} /> Rechazar
+                  </button>
+                  <button
+                    onClick={() => approvePost(detailPost)}
+                    className="h-8 px-3 rounded-lg border border-[rgba(34,197,139,0.3)] bg-[rgba(34,197,139,0.08)] text-[11.5px] font-medium text-[var(--color-success)] cursor-pointer hover:bg-[rgba(34,197,139,0.14)] transition flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 size={12} /> Aprobar
+                  </button>
+                </>
+              )}
+
+              {detailPost.estado === "aprobado" && (
+                <button
+                  onClick={() => { setSchedulePostId(detailPost.id); setDetailPost(null); }}
+                  className="h-8 px-3 rounded-lg border border-[rgba(43,91,255,0.3)] bg-[rgba(43,91,255,0.08)] text-[11.5px] font-medium text-[var(--color-primary-hover)] cursor-pointer hover:bg-[rgba(43,91,255,0.14)] transition flex items-center gap-1.5"
+                >
+                  <Calendar size={12} /> Programar
+                </button>
+              )}
+
+              {detailPost.estado === "programado" && (
+                <button
+                  onClick={() => markPublished(detailPost)}
+                  className="h-8 px-3 rounded-lg border border-[rgba(34,197,139,0.3)] bg-[rgba(34,197,139,0.08)] text-[11.5px] font-medium text-[var(--color-success)] cursor-pointer hover:bg-[rgba(34,197,139,0.14)] transition flex items-center gap-1.5"
+                >
+                  <Globe size={12} /> Marcar publicado
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Schedule modal */}
       {schedulePostId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -461,6 +682,17 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
         </div>
       )}
     </>
+  );
+}
+
+function SectionLabel({ label, icon }: { label: string; icon?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 mb-2">
+      {icon && <span className="text-[var(--color-text-dim)]">{icon}</span>}
+      <p className="text-[10.5px] uppercase tracking-[0.07em] text-[var(--color-text-dim)] font-semibold">
+        {label}
+      </p>
+    </div>
   );
 }
 
