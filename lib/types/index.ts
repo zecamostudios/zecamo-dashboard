@@ -226,6 +226,8 @@ export interface ContentAsset {
   created_at: string;
 }
 
+export type PlannerEventType = "publicacion" | "generacion";
+
 export interface PlannerSlot {
   id: string;
   post_id: string;
@@ -234,6 +236,7 @@ export interface PlannerSlot {
   plataforma: ContentPlatform;
   estado: string;
   orden: number;
+  tipo: PlannerEventType;
   post?: ContentPost;
 }
 
