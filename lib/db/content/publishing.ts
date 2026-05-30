@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { PublishingJob, PlatformAccount, PublishingJobStatus } from "@/lib/types";
+import type { PublishingJob, PlatformAccount, PublishingJobStatus, ContentPlatform } from "@/lib/types";
 
 export async function getPlatformAccounts(): Promise<PlatformAccount[]> {
   const supabase = await createClient();
@@ -9,6 +9,20 @@ export async function getPlatformAccounts(): Promise<PlatformAccount[]> {
     .eq("activo", true)
     .order("plataforma");
   return (data ?? []) as PlatformAccount[];
+}
+
+export async function getPlatformAccountByPlatform(
+  plataforma: ContentPlatform,
+): Promise<PlatformAccount | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("platform_accounts")
+    .select("*")
+    .eq("plataforma", plataforma)
+    .eq("activo", true)
+    .limit(1)
+    .single();
+  return (data as PlatformAccount) ?? null;
 }
 
 export async function getPublishingJobs(postId?: string): Promise<PublishingJob[]> {
@@ -24,13 +38,19 @@ export async function getPublishingJobs(postId?: string): Promise<PublishingJob[
 
 export async function createPublishingJob(job: {
   post_id: string;
-  platform_account_id: string;
+  plataforma: ContentPlatform;
+  account_id?: string;
   programado_para?: string;
 }): Promise<PublishingJob | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("publishing_jobs")
-    .insert({ ...job, estado: "pending" as PublishingJobStatus, intentos: 0 })
+    .insert({
+      ...job,
+      estado: "pending" as PublishingJobStatus,
+      intentos: 0,
+      max_intentos: 3,
+    })
     .select()
     .single();
   if (error) return null;
@@ -39,7 +59,7 @@ export async function createPublishingJob(job: {
 
 export async function updatePublishingJob(
   id: string,
-  updates: Partial<Pick<PublishingJob, "estado" | "external_id" | "error_msg" | "procesado_en" | "intentos">>,
+  updates: Partial<Pick<PublishingJob, "estado" | "external_post_id" | "error_msg" | "procesado_en" | "intentos" | "resultado">>,
 ): Promise<void> {
   const supabase = await createClient();
   await supabase.from("publishing_jobs").update(updates).eq("id", id);

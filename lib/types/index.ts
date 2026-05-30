@@ -272,13 +272,16 @@ export type PublishingJobStatus = "pending" | "processing" | "success" | "error"
 export interface PublishingJob {
   id: string;
   post_id: string;
-  platform_account_id: string;
+  plataforma: ContentPlatform;
+  account_id?: string;
   estado: PublishingJobStatus;
   programado_para?: string;
   procesado_en?: string;
-  external_id?: string;
-  error_msg?: string;
   intentos: number;
+  max_intentos: number;
+  resultado?: Record<string, unknown>;
+  error_msg?: string;
+  external_post_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -286,13 +289,15 @@ export interface PublishingJob {
 export interface PlatformAccount {
   id: string;
   plataforma: ContentPlatform;
-  nombre: string;
-  handle?: string;
+  nombre_cuenta: string;
+  username?: string;
+  account_id?: string;
   access_token?: string;
   refresh_token?: string;
-  token_expires_at?: string;
+  expires_at?: string;
   activo: boolean;
   is_mock: boolean;
+  owner_initials?: string;
   metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -301,15 +306,20 @@ export interface PlatformAccount {
 export interface AnalyticsSnapshot {
   id: string;
   post_id: string;
-  fecha: string;
-  impressions: number;
-  reach: number;
-  likes: number;
-  comments: number;
-  shares: number;
+  plataforma: ContentPlatform;
+  external_post_id?: string;
+  fecha_snapshot: string;
+  impresiones: number;
+  alcance: number;
+  engagement: number;
   clicks: number;
+  likes: number;
+  comentarios: number;
+  compartidos: number;
+  guardados: number;
+  seguidores_ganados: number;
   engagement_rate: number;
-  platform_data?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 

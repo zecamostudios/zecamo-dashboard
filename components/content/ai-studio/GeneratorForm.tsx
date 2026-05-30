@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sparkles, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
@@ -40,11 +40,17 @@ interface GeneratorFormProps {
   tipo: AIGenerationType;
   plataforma: ContentPlatform;
   loading: boolean;
+  externalPrompt?: string;
+  onPromptChange?: (prompt: string) => void;
   onGenerate: (prompt: string, context: Record<string, string>) => void;
 }
 
-export function GeneratorForm({ tipo, plataforma, loading, onGenerate }: GeneratorFormProps) {
-  const [prompt, setPrompt] = useState("");
+export function GeneratorForm({ tipo, plataforma, loading, externalPrompt, onPromptChange, onGenerate }: GeneratorFormProps) {
+  const [prompt, setPrompt] = useState(externalPrompt ?? "");
+
+  useEffect(() => {
+    if (externalPrompt !== undefined) setPrompt(externalPrompt);
+  }, [externalPrompt]);
   const [tono, setTono] = useState("profesional-directo");
   const [contexto, setContexto] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -71,7 +77,7 @@ export function GeneratorForm({ tipo, plataforma, loading, onGenerate }: Generat
       <div className="flex flex-col gap-3">
         <textarea
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => { setPrompt(e.target.value); onPromptChange?.(e.target.value); }}
           placeholder={typeConfig.placeholder}
           rows={5}
           className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border-2)] rounded-xl px-4 py-3 text-[13.5px] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] resize-none outline-none focus:border-[rgba(43,91,255,0.4)] focus:shadow-[0_0_0_3px_rgba(43,91,255,0.10)] transition-all"
@@ -150,7 +156,7 @@ export function GeneratorForm({ tipo, plataforma, loading, onGenerate }: Generat
           ) : (
             <>
               <Sparkles size={14} />
-              Generar con Claude
+              Generar contenido
             </>
           )}
         </Button>

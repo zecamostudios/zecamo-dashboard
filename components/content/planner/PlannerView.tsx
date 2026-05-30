@@ -8,6 +8,7 @@ import {
   Globe,
   Send,
   X,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -52,6 +53,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
   const [showModal, setShowModal] = useState(false);
   const [addForDate, setAddForDate] = useState("");
   const [slotForm, setSlotForm] = useState({ plataforma: "linkedin" as ContentPlatform, hora: "", hook: "" });
+  const [saving, setSaving] = useState(false);
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
 
@@ -81,11 +83,15 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
     setShowModal(true);
   }
 
-  function addSlot() {
-    if (!slotForm.hook.trim()) return;
+  async function addSlot() {
+    if (!slotForm.hook.trim() || saving) return;
+    setSaving(true);
+
+    // Optimistic insert with temp id
+    const tempId = `temp_${Date.now()}`;
     const now = new Date().toISOString();
-    const mockPost: ContentPost = {
-      id: `post_${Date.now()}`,
+    const optimisticPost: ContentPost = {
+      id: tempId,
       titulo: slotForm.hook,
       plataforma: slotForm.plataforma,
       tipo: "post",
@@ -95,19 +101,55 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
       created_at: now,
       updated_at: now,
     };
-    const newSlot: PlannerSlot = {
-      id: `slot_${Date.now()}`,
-      post_id: mockPost.id,
+    const optimisticSlot: PlannerSlot = {
+      id: tempId,
+      post_id: tempId,
       plataforma: slotForm.plataforma,
       fecha: addForDate,
       hora: slotForm.hora || undefined,
-      estado: "borrador",
+      estado: "programado",
       orden: slots.length,
-      post: mockPost,
+      post: optimisticPost,
     };
-    setSlots((prev) => [...prev, newSlot]);
-    toast.success("Slot agregado al planner");
+    setSlots((prev) => [...prev, optimisticSlot]);
     setShowModal(false);
+
+    try {
+      const res = await fetch("/api/content/planner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha:      addForDate,
+          hora:       slotForm.hora || null,
+          plataforma: slotForm.plataforma,
+          hook:       slotForm.hook,
+          titulo:     slotForm.hook,
+        }),
+      });
+      if (!res.ok) throw new Error("Error al guardar");
+      const saved = await res.json() as PlannerSlot;
+      // Replace optimistic slot with real one
+      setSlots((prev) =>
+        prev.map((s) => s.id === tempId ? { ...saved, post: optimisticPost } : s),
+      );
+      toast.success("Slot guardado");
+    } catch {
+      setSlots((prev) => prev.filter((s) => s.id !== tempId));
+      toast.error("Error al guardar el slot");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteSlot(slotId: string) {
+    const prev = slots;
+    setSlots((s) => s.filter((x) => x.id !== slotId));
+    try {
+      await fetch(`/api/content/planner/${slotId}`, { method: "DELETE" });
+    } catch {
+      setSlots(prev);
+      toast.error("Error al eliminar el slot");
+    }
   }
 
   const isToday = (d: Date) => {
@@ -213,7 +255,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
             </div>
             <div className="flex gap-2 mt-6">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer hover:text-[var(--color-text)] transition">Cancelar</button>
-              <button onClick={addSlot} disabled={!slotForm.hook.trim()} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-50">Agregar slot</button>
+              <button onClick={addSlot} disabled={!slotForm.hook.trim() || saving} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-50">{saving ? "Guardando..." : "Agregar slot"}</button>
             </div>
           </div>
         </div>
@@ -264,7 +306,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
                   return (
                     <div
                       key={slot.id}
-                      className="p-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-border-2)] transition cursor-pointer group"
+                      className="p-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-border-2)] transition cursor-pointer group relative"
                     >
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <PlatIcon size={11} style={{ color }} />
@@ -289,6 +331,12 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
                           {slot.post.hook}
                         </p>
                       )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteSlot(slot.id); }}
+                        className="absolute top-1.5 right-1.5 w-5 h-5 rounded grid place-items-center text-[var(--color-danger)] opacity-0 group-hover:opacity-100 transition bg-transparent border-0 cursor-pointer hover:bg-[rgba(255,84,102,0.1)]"
+                      >
+                        <Trash2 size={10} />
+                      </button>
                     </div>
                   );
                 })}

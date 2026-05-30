@@ -18,9 +18,11 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Extension point: here you would trigger the actual n8n webhook
-  // const n8nWebhook = process.env.N8N_WEBHOOK_URL;
-  // if (n8nWebhook) await fetch(`${n8nWebhook}/${automation_id}`, { method: "POST" });
+  // Trigger n8n webhook if configured
+  const n8nWebhook = process.env.N8N_WEBHOOK_URL;
+  if (n8nWebhook) {
+    await fetch(`${n8nWebhook}/${automation_id}`, { method: "POST" }).catch(() => {});
+  }
 
   return NextResponse.json({ run: data });
 }

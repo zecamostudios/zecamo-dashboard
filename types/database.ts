@@ -764,68 +764,6 @@ export interface Database {
         };
         Relationships: [];
       };
-      content_planner: {
-        Row: {
-          id: string;
-          post_id: string;
-          fecha: string;
-          hora: string | null;
-          plataforma: string;
-          estado: string;
-          orden: number;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          post_id: string;
-          fecha: string;
-          hora?: string | null;
-          plataforma: string;
-          estado?: string;
-          orden?: number;
-        };
-        Update: {
-          fecha?: string;
-          hora?: string | null;
-          plataforma?: string;
-          estado?: string;
-          orden?: number;
-        };
-        Relationships: [];
-      };
-      content_ai_generations: {
-        Row: {
-          id: string;
-          tipo: string;
-          prompt: string;
-          resultado: string | null;
-          plataforma: string | null;
-          modelo: string;
-          tokens_in: number | null;
-          tokens_out: number | null;
-          post_id: string | null;
-          creado_por: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          tipo: string;
-          prompt: string;
-          resultado?: string | null;
-          plataforma?: string | null;
-          modelo?: string;
-          tokens_in?: number | null;
-          tokens_out?: number | null;
-          post_id?: string | null;
-          creado_por?: string | null;
-        };
-        Update: {
-          resultado?: string | null;
-          tokens_in?: number | null;
-          tokens_out?: number | null;
-        };
-        Relationships: [];
-      };
       content_automation_runs: {
         Row: {
           id: string;
@@ -864,8 +802,11 @@ export interface Database {
           categoria: string;
           clave: string;
           valor: string;
+          descripcion: string | null;
           activo: boolean;
           orden: number;
+          metadata: Record<string, unknown> | null;
+          creado_por: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -874,8 +815,11 @@ export interface Database {
           categoria: string;
           clave: string;
           valor: string;
+          descripcion?: string | null;
           activo?: boolean;
           orden?: number;
+          metadata?: Record<string, unknown> | null;
+          creado_por?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -883,8 +827,10 @@ export interface Database {
           categoria?: string;
           clave?: string;
           valor?: string;
+          descripcion?: string | null;
           activo?: boolean;
           orden?: number;
+          metadata?: Record<string, unknown> | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -892,41 +838,55 @@ export interface Database {
       analytics_snapshots: {
         Row: {
           id: string;
-          post_id: string;
-          fecha: string;
-          impressions: number;
-          reach: number;
-          likes: number;
-          comments: number;
-          shares: number;
+          post_id: string | null;
+          plataforma: string;
+          external_post_id: string | null;
+          fecha_snapshot: string;
+          impresiones: number;
+          alcance: number;
+          engagement: number;
           clicks: number;
+          likes: number;
+          comentarios: number;
+          compartidos: number;
+          guardados: number;
+          seguidores_ganados: number;
           engagement_rate: number;
-          platform_data: Record<string, unknown> | null;
+          metadata: Record<string, unknown> | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          post_id: string;
-          fecha: string;
-          impressions?: number;
-          reach?: number;
-          likes?: number;
-          comments?: number;
-          shares?: number;
+          post_id?: string | null;
+          plataforma: string;
+          external_post_id?: string | null;
+          fecha_snapshot?: string;
+          impresiones?: number;
+          alcance?: number;
+          engagement?: number;
           clicks?: number;
+          likes?: number;
+          comentarios?: number;
+          compartidos?: number;
+          guardados?: number;
+          seguidores_ganados?: number;
           engagement_rate?: number;
-          platform_data?: Record<string, unknown> | null;
+          metadata?: Record<string, unknown> | null;
           created_at?: string;
         };
         Update: {
-          impressions?: number;
-          reach?: number;
-          likes?: number;
-          comments?: number;
-          shares?: number;
+          plataforma?: string;
+          impresiones?: number;
+          alcance?: number;
+          engagement?: number;
           clicks?: number;
+          likes?: number;
+          comentarios?: number;
+          compartidos?: number;
+          guardados?: number;
+          seguidores_ganados?: number;
           engagement_rate?: number;
-          platform_data?: Record<string, unknown> | null;
+          metadata?: Record<string, unknown> | null;
         };
         Relationships: [];
       };
@@ -934,13 +894,15 @@ export interface Database {
         Row: {
           id: string;
           plataforma: string;
-          nombre: string;
-          handle: string | null;
+          nombre_cuenta: string;
+          username: string | null;
+          account_id: string | null;
           access_token: string | null;
           refresh_token: string | null;
-          token_expires_at: string | null;
+          expires_at: string | null;
           activo: boolean;
           is_mock: boolean;
+          owner_initials: string | null;
           metadata: Record<string, unknown> | null;
           created_at: string;
           updated_at: string;
@@ -948,25 +910,29 @@ export interface Database {
         Insert: {
           id?: string;
           plataforma: string;
-          nombre: string;
-          handle?: string | null;
+          nombre_cuenta: string;
+          username?: string | null;
+          account_id?: string | null;
           access_token?: string | null;
           refresh_token?: string | null;
-          token_expires_at?: string | null;
+          expires_at?: string | null;
           activo?: boolean;
           is_mock?: boolean;
+          owner_initials?: string | null;
           metadata?: Record<string, unknown> | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
-          nombre?: string;
-          handle?: string | null;
+          nombre_cuenta?: string;
+          username?: string | null;
+          account_id?: string | null;
           access_token?: string | null;
           refresh_token?: string | null;
-          token_expires_at?: string | null;
+          expires_at?: string | null;
           activo?: boolean;
           is_mock?: boolean;
+          owner_initials?: string | null;
           metadata?: Record<string, unknown> | null;
           updated_at?: string;
         };
@@ -976,26 +942,32 @@ export interface Database {
         Row: {
           id: string;
           post_id: string;
-          platform_account_id: string;
+          plataforma: string;
+          account_id: string | null;
           estado: "pending" | "processing" | "success" | "error" | "cancelled";
           programado_para: string | null;
           procesado_en: string | null;
-          external_id: string | null;
-          error_msg: string | null;
           intentos: number;
+          max_intentos: number;
+          resultado: Record<string, unknown> | null;
+          error_msg: string | null;
+          external_post_id: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           post_id: string;
-          platform_account_id: string;
+          plataforma: string;
+          account_id?: string | null;
           estado?: "pending" | "processing" | "success" | "error" | "cancelled";
           programado_para?: string | null;
           procesado_en?: string | null;
-          external_id?: string | null;
-          error_msg?: string | null;
           intentos?: number;
+          max_intentos?: number;
+          resultado?: Record<string, unknown> | null;
+          error_msg?: string | null;
+          external_post_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1003,10 +975,75 @@ export interface Database {
           estado?: "pending" | "processing" | "success" | "error" | "cancelled";
           programado_para?: string | null;
           procesado_en?: string | null;
-          external_id?: string | null;
-          error_msg?: string | null;
           intentos?: number;
+          resultado?: Record<string, unknown> | null;
+          error_msg?: string | null;
+          external_post_id?: string | null;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      content_planner: {
+        Row: {
+          id: string;
+          post_id: string | null;
+          fecha: string;
+          hora: string | null;
+          plataforma: string;
+          estado: string;
+          orden: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id?: string | null;
+          fecha: string;
+          hora?: string | null;
+          plataforma: string;
+          estado?: string;
+          orden?: number;
+          created_at?: string;
+        };
+        Update: {
+          post_id?: string | null;
+          fecha?: string;
+          hora?: string | null;
+          plataforma?: string;
+          estado?: string;
+          orden?: number;
+        };
+        Relationships: [];
+      };
+      content_ai_generations: {
+        Row: {
+          id: string;
+          tipo: string;
+          prompt: string;
+          resultado: string | null;
+          plataforma: string | null;
+          modelo: string | null;
+          tokens_in: number | null;
+          tokens_out: number | null;
+          post_id: string | null;
+          creado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tipo: string;
+          prompt: string;
+          resultado?: string | null;
+          plataforma?: string | null;
+          modelo?: string | null;
+          tokens_in?: number | null;
+          tokens_out?: number | null;
+          post_id?: string | null;
+          creado_por?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          resultado?: string | null;
+          post_id?: string | null;
         };
         Relationships: [];
       };
@@ -1019,6 +1056,7 @@ export interface Database {
           estado_anterior: string | null;
           estado_nuevo: string | null;
           actor: string | null;
+          notas: string | null;
           metadata: Record<string, unknown> | null;
           created_at: string;
         };
@@ -1030,6 +1068,7 @@ export interface Database {
           estado_anterior?: string | null;
           estado_nuevo?: string | null;
           actor?: string | null;
+          notas?: string | null;
           metadata?: Record<string, unknown> | null;
           created_at?: string;
         };
@@ -1038,6 +1077,7 @@ export interface Database {
           estado_anterior?: string | null;
           estado_nuevo?: string | null;
           actor?: string | null;
+          notas?: string | null;
           metadata?: Record<string, unknown> | null;
         };
         Relationships: [];

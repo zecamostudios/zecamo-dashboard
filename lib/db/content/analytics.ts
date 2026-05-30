@@ -7,7 +7,7 @@ export async function getAnalyticsSnapshots(postId: string): Promise<AnalyticsSn
     .from("analytics_snapshots")
     .select("*")
     .eq("post_id", postId)
-    .order("fecha", { ascending: true });
+    .order("fecha_snapshot", { ascending: true });
   return (data ?? []) as AnalyticsSnapshot[];
 }
 
@@ -17,7 +17,7 @@ export async function getLatestSnapshot(postId: string): Promise<AnalyticsSnapsh
     .from("analytics_snapshots")
     .select("*")
     .eq("post_id", postId)
-    .order("fecha", { ascending: false })
+    .order("fecha_snapshot", { ascending: false })
     .limit(1)
     .single();
   return (data as AnalyticsSnapshot) ?? null;
@@ -29,7 +29,7 @@ export async function upsertSnapshot(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("analytics_snapshots")
-    .upsert({ ...snapshot }, { onConflict: "post_id,fecha" })
+    .upsert({ ...snapshot }, { onConflict: "post_id,fecha_snapshot" })
     .select()
     .single();
   if (error) return null;
