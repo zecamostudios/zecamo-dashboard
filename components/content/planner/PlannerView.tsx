@@ -268,6 +268,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
       hora: slotForm.hora || undefined,
       estado: "programado",
       orden: slots.length,
+      tipo: "publicacion",
       post: optimisticPost,
     };
     setSlots((prev) => [...prev, optimisticSlot]);
