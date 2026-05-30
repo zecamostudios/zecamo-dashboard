@@ -329,6 +329,13 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                     {/* Actions */}
                     <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap justify-end">
                       <button
+                        onClick={() => setDetailPost(post)}
+                        className="w-8 h-8 rounded-lg border border-[var(--color-border)] bg-white/[0.03] grid place-items-center text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] transition"
+                        title="Ver detalle"
+                      >
+                        <Eye size={13} />
+                      </button>
+                      <button
                         onClick={() => loadEvents(post.id)}
                         className="w-8 h-8 rounded-lg border border-[var(--color-border)] bg-white/[0.03] grid place-items-center text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] transition"
                         title="Historial"
