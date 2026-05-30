@@ -5,9 +5,9 @@ import type {
 } from "@/lib/types";
 
 export const OWNERS: Owner[] = [
-  { id: "JS", name: "Joaco Sánchez",    short: "Joaco",    color: "#2B5BFF" },
-  { id: "LM", name: "Lisandro Méndez", short: "Lisandro", color: "#A47BFF" },
-  { id: "BR", name: "Benjamín Rivero", short: "Benja",    color: "#22C58B" },
+  { id: "JS", name: "Joaco",  short: "Joaco",  color: "#2B5BFF" },
+  { id: "LM", name: "Lichi",  short: "Lichi",  color: "#A47BFF" },
+  { id: "BR", name: "Benji",  short: "Benji",  color: "#22C58B" },
 ];
 
 export const STAGES: Stage[] = [
