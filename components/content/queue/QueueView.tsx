@@ -23,6 +23,8 @@ import {
   Zap,
   MessageSquare,
   BarChart3,
+  LayoutTemplate,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -70,6 +72,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
   const [expandedEvents, setExpandedEvents] = useState<string | null>(null);
   const [eventsCache, setEventsCache] = useState<Record<string, WorkflowEvent[]>>({});
   const [detailPost, setDetailPost] = useState<ContentPost | null>(null);
+  const [carouselLoading, setCarouselLoading] = useState<string | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -197,6 +200,30 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
       toast.success("Post duplicado como borrador");
     } else {
       toast.error("Error al duplicar");
+    }
+  }
+
+  async function generateAndPublishCarousel(post: ContentPost, publishAfter = false) {
+    setCarouselLoading(post.id);
+    try {
+      const res = await fetch("/api/content/carousel/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ post_id: post.id, publish_after: publishAfter }),
+      });
+      const data = await res.json() as { ok?: boolean; slides?: number; published?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        toast.error(data.error ?? "Error al generar carrusel");
+        return;
+      }
+      toast.success(`Carrusel listo: ${data.slides} slides${data.published ? " · Publicado en Instagram" : ""}`);
+      if (publishAfter) {
+        setPosts((prev) => prev.map((p) => p.id === post.id ? { ...p, estado: "publicado" } : p));
+      }
+    } catch {
+      toast.error("Error al generar carrusel");
+    } finally {
+      setCarouselLoading(null);
     }
   }
 
@@ -388,6 +415,20 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                         </>
                       )}
 
+                      {post.estado === "aprobado" && post.plataforma === "instagram" && (
+                        <button
+                          onClick={() => generateAndPublishCarousel(post, true)}
+                          disabled={carouselLoading === post.id}
+                          className="h-8 px-3 rounded-lg border border-[rgba(229,100,255,0.3)] bg-[rgba(229,100,255,0.08)] text-[11.5px] font-medium text-[#e564ff] cursor-pointer hover:bg-[rgba(229,100,255,0.14)] transition flex items-center gap-1.5 disabled:opacity-50"
+                          title="Generar carrusel y publicar en Instagram"
+                        >
+                          {carouselLoading === post.id
+                            ? <><Loader2 size={12} className="animate-spin" /> Generando...</>
+                            : <><LayoutTemplate size={12} /> Carrusel IG</>
+                          }
+                        </button>
+                      )}
+
                       {post.estado === "aprobado" && (
                         <button
                           onClick={() => setSchedulePostId(post.id)}
@@ -452,6 +493,18 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                           <CheckCircle2 size={14} />
                         </button>
                       </>
+                    )}
+                    {post.estado === "aprobado" && post.plataforma === "instagram" && (
+                      <button
+                        onClick={() => generateAndPublishCarousel(post, true)}
+                        disabled={carouselLoading === post.id}
+                        className="h-8 px-3 rounded-lg border border-[rgba(229,100,255,0.3)] bg-[rgba(229,100,255,0.08)] text-[11.5px] font-medium text-[#e564ff] flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {carouselLoading === post.id
+                          ? <><Loader2 size={12} className="animate-spin" /> Gen...</>
+                          : <><LayoutTemplate size={12} /> Carrusel</>
+                        }
+                      </button>
                     )}
                     {post.estado === "aprobado" && (
                       <button
