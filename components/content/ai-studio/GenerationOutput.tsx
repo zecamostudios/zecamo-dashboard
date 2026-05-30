@@ -28,7 +28,7 @@ export function GenerationOutput({
       <Card glow className="min-h-[320px] flex flex-col items-center justify-center gap-4">
         <div className="w-10 h-10 rounded-full border-2 border-[var(--color-primary-hover)]/30 border-t-[var(--color-primary-hover)] animate-spin" />
         <div className="text-[13px] text-[var(--color-text-muted)]">
-          Claude está generando tu contenido...
+          Generando tu contenido con IA...
         </div>
       </Card>
     );
@@ -44,7 +44,7 @@ export function GenerationOutput({
           Tu contenido aparecerá aquí
         </div>
         <div className="text-[12.5px] text-[var(--color-text-dim)] text-center max-w-[280px]">
-          Completá el formulario y hacé clic en &ldquo;Generar con Claude&rdquo;
+          Completá el formulario y hacé clic en &ldquo;Generar contenido&rdquo;
         </div>
       </Card>
     );

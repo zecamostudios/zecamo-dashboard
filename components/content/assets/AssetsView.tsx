@@ -15,6 +15,7 @@ import {
   Heart,
   Copy,
   X,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -45,6 +46,7 @@ export function AssetsView({ initialAssets = [] }: AssetsViewProps) {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [newForm, setNewForm] = useState({ nombre: "", tipo: "hook" as AssetType, contenido: "", tags: "" });
+  const [creating, setCreating] = useState(false);
 
   const filtered = useMemo(() => {
     return assets.filter((a) => {
@@ -61,29 +63,57 @@ export function AssetsView({ initialAssets = [] }: AssetsViewProps) {
 
   async function toggleFavorite(id: string, current: boolean) {
     setAssets((prev) => prev.map((a) => a.id === id ? { ...a, favorito: !current } : a));
-    await fetch(`/api/content/assets/${id}`, {
+    const res = await fetch(`/api/content/assets/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ favorito: !current }),
     });
+    if (!res.ok) {
+      setAssets((prev) => prev.map((a) => a.id === id ? { ...a, favorito: current } : a));
+      toast.error("Error al actualizar favorito");
+    }
   }
 
-  function createAsset() {
-    if (!newForm.nombre.trim()) return;
-    const asset: ContentAsset = {
-      id: `asset_${Date.now()}`,
-      nombre: newForm.nombre.trim(),
-      tipo: newForm.tipo,
-      contenido: newForm.contenido.trim() || undefined,
-      tags: newForm.tags ? newForm.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
-      uses: 0,
-      favorito: false,
-      created_at: new Date().toISOString(),
-    };
-    setAssets((prev) => [asset, ...prev]);
-    toast.success(`Asset "${asset.nombre}" creado`);
-    setShowNewModal(false);
-    setNewForm({ nombre: "", tipo: "hook", contenido: "", tags: "" });
+  async function deleteAsset(id: string) {
+    const prev = assets;
+    setAssets((a) => a.filter((x) => x.id !== id));
+    const res = await fetch(`/api/content/assets/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setAssets(prev);
+      toast.error("Error al eliminar");
+    } else {
+      toast.success("Asset eliminado");
+    }
+  }
+
+  async function createAsset() {
+    if (!newForm.nombre.trim() || creating) return;
+    setCreating(true);
+    try {
+      const body = {
+        nombre:   newForm.nombre.trim(),
+        tipo:     newForm.tipo,
+        contenido: newForm.contenido.trim() || null,
+        tags:     newForm.tags ? newForm.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+        uses:     0,
+        favorito: false,
+      };
+      const res = await fetch("/api/content/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      const { asset } = await res.json() as { asset: ContentAsset };
+      setAssets((prev) => [asset, ...prev]);
+      toast.success(`Asset "${asset.nombre}" creado`);
+      setShowNewModal(false);
+      setNewForm({ nombre: "", tipo: "hook", contenido: "", tags: "" });
+    } catch {
+      toast.error("Error al crear el asset");
+    } finally {
+      setCreating(false);
+    }
   }
 
   function copyAsset(asset: ContentAsset) {
@@ -248,7 +278,7 @@ export function AssetsView({ initialAssets = [] }: AssetsViewProps) {
             </div>
             <div className="flex gap-2 mt-6">
               <button onClick={() => setShowNewModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer hover:text-[var(--color-text)] transition">Cancelar</button>
-              <button onClick={createAsset} disabled={!newForm.nombre.trim()} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-50">Crear asset</button>
+              <button onClick={createAsset} disabled={!newForm.nombre.trim() || creating} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-50">{creating ? "Creando..." : "Crear asset"}</button>
             </div>
           </div>
         </div>
@@ -273,6 +303,7 @@ export function AssetsView({ initialAssets = [] }: AssetsViewProps) {
               asset={asset}
               onFavorite={() => toggleFavorite(asset.id, asset.favorito)}
               onCopy={() => copyAsset(asset)}
+              onDelete={() => deleteAsset(asset.id)}
             />
           ))}
         </div>
@@ -285,10 +316,12 @@ function AssetCard({
   asset,
   onFavorite,
   onCopy,
+  onDelete,
 }: {
   asset: ContentAsset;
   onFavorite: () => void;
   onCopy: () => void;
+  onDelete: () => void;
 }) {
   const TYPE_COLOR: Record<AssetType, string> = {
     hook:              "var(--color-primary-hover)",
@@ -350,12 +383,20 @@ function AssetCard({
         <span className="font-mono text-[10.5px] text-[var(--color-text-dim)]">
           {asset.uses} usos
         </span>
-        <button
-          onClick={onCopy}
-          className="flex items-center gap-1.5 text-[11.5px] px-2.5 py-1 rounded-lg border border-[var(--color-border-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-3)] cursor-pointer bg-transparent transition opacity-0 group-hover:opacity-100"
-        >
-          <Copy size={11} /> Copiar
-        </button>
+        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={onCopy}
+            className="flex items-center gap-1.5 text-[11.5px] px-2.5 py-1 rounded-lg border border-[var(--color-border-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-3)] cursor-pointer bg-transparent transition"
+          >
+            <Copy size={11} /> Copiar
+          </button>
+          <button
+            onClick={onDelete}
+            className="w-6 h-6 rounded-lg border border-[rgba(255,84,102,0.25)] bg-transparent grid place-items-center text-[var(--color-danger)] cursor-pointer hover:bg-[rgba(255,84,102,0.1)] transition"
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
       </div>
     </div>
   );

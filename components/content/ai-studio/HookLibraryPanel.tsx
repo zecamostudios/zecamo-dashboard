@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { X, BookOpen, Star, Copy, Plus } from "lucide-react";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Chip } from "@/components/ui-zecamo/Chip";
@@ -18,11 +19,14 @@ const HOOK_TYPES: { id: AssetType; label: string }[] = [
 ];
 
 export function HookLibraryPanel({ onClose, onInsert }: HookLibraryPanelProps) {
+  const router = useRouter();
   const [assets, setAssets] = useState<ContentAsset[]>([]);
   const [filter, setFilter] = useState<AssetType>("hook");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    setAssets([]);
     fetch(`/api/content/assets?tipo=${filter}`)
       .then((r) => r.json())
       .then((d) => setAssets(d.assets ?? []))
@@ -67,7 +71,11 @@ export function HookLibraryPanel({ onClose, onInsert }: HookLibraryPanelProps) {
               <div className="text-[var(--color-text-dim)] text-[13px] mb-4">
                 No hay {filter}s en la biblioteca aún
               </div>
-              <Button variant="primary" className="mx-auto">
+              <Button
+                variant="primary"
+                className="mx-auto"
+                onClick={() => { onClose(); router.push("/content/assets"); }}
+              >
                 <Plus size={13} /> Agregar primero
               </Button>
             </div>

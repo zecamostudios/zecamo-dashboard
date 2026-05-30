@@ -64,9 +64,10 @@ export function AIStudioView() {
   const [platform, setPlatform]   = useState<ContentPlatform>("linkedin");
   const [prompt, setPrompt]       = useState("");
   const [result, setResult]       = useState<GenerationResult | null>(null);
-  const [loading, setLoading]     = useState(false);
-  const [showHooks, setShowHooks] = useState(false);
-  const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
+  const [loading, setLoading]           = useState(false);
+  const [showHooks, setShowHooks]       = useState(false);
+  const [recentPosts, setRecentPosts]   = useState<RecentPost[]>([]);
+  const [lastContext, setLastContext]   = useState<Record<string, string>>({});
 
   // Load recent posts on mount
   useEffect(() => {
@@ -77,6 +78,7 @@ export function AIStudioView() {
   }, []);
 
   async function handleGenerate(prompt: string, context: Record<string, string>) {
+    setLastContext(context);
     setLoading(true);
     setResult(null);
     try {
@@ -262,7 +264,7 @@ export function AIStudioView() {
             plataforma={platform}
             onCopy={handleCopy}
             onSave={handleSave}
-            onRegenerate={() => {}}
+            onRegenerate={() => { if (prompt.trim()) handleGenerate(prompt, lastContext); }}
           />
 
           {/* Recent generations */}

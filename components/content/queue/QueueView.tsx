@@ -15,6 +15,8 @@ import {
   Copy,
   History,
   ChevronUp,
+  Trash2,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -100,6 +102,28 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
   async function rejectPost(post: ContentPost) {
     await transition(post.id, post.estado, "rechazado");
     toast.error("Post rechazado");
+  }
+
+  async function submitForReview(post: ContentPost) {
+    await transition(post.id, post.estado, "revision");
+    toast.success("Enviado a revisión");
+  }
+
+  async function markPublished(post: ContentPost) {
+    await transition(post.id, post.estado, "publicado");
+    toast.success("Post marcado como publicado");
+  }
+
+  async function deletePost(post: ContentPost) {
+    const prev = posts;
+    setPosts((p) => p.filter((x) => x.id !== post.id));
+    const res = await fetch(`/api/content/posts/${post.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setPosts(prev);
+      toast.error("Error al eliminar");
+    } else {
+      toast.success("Post eliminado");
+    }
   }
 
   async function confirmSchedule() {
@@ -286,7 +310,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap justify-end">
                       <button
                         onClick={() => loadEvents(post.id)}
                         className="w-8 h-8 rounded-lg border border-[var(--color-border)] bg-white/[0.03] grid place-items-center text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] transition"
@@ -301,6 +325,23 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                       >
                         <Copy size={13} />
                       </button>
+                      <button
+                        onClick={() => deletePost(post)}
+                        className="w-8 h-8 rounded-lg border border-[rgba(255,84,102,0.2)] bg-transparent grid place-items-center text-[var(--color-danger)] cursor-pointer hover:bg-[rgba(255,84,102,0.08)] transition"
+                        title="Eliminar"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+
+                      {post.estado === "borrador" && (
+                        <button
+                          onClick={() => submitForReview(post)}
+                          className="h-8 px-3 rounded-lg border border-[rgba(240,168,42,0.3)] bg-[rgba(240,168,42,0.08)] text-[11.5px] font-medium text-[var(--color-warning)] cursor-pointer hover:bg-[rgba(240,168,42,0.14)] transition flex items-center gap-1.5"
+                          title="Enviar a revisión"
+                        >
+                          <Eye size={12} /> Revisar
+                        </button>
+                      )}
 
                       {post.estado === "revision" && (
                         <>
@@ -327,6 +368,16 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                           className="h-8 px-3 rounded-lg border border-[rgba(43,91,255,0.3)] bg-[rgba(43,91,255,0.08)] text-[11.5px] font-medium text-[var(--color-primary-hover)] cursor-pointer hover:bg-[rgba(43,91,255,0.14)] transition flex items-center gap-1.5"
                         >
                           <Calendar size={12} /> Programar
+                        </button>
+                      )}
+
+                      {post.estado === "programado" && (
+                        <button
+                          onClick={() => markPublished(post)}
+                          className="h-8 px-3 rounded-lg border border-[rgba(34,197,139,0.3)] bg-[rgba(34,197,139,0.08)] text-[11.5px] font-medium text-[var(--color-success)] cursor-pointer hover:bg-[rgba(34,197,139,0.14)] transition flex items-center gap-1.5"
+                          title="Marcar como publicado"
+                        >
+                          <Globe size={12} /> Publicado
                         </button>
                       )}
                     </div>

@@ -220,13 +220,14 @@ export function BrandMemoryView({ initialMemory = [] }: BrandMemoryViewProps) {
                         {item.clave}
                       </div>
                       {editingId === item.id ? (
-                        <div className="flex items-center gap-2 mt-1">
-                          <input
-                            className="flex-1 h-7 rounded-lg border border-[var(--color-border-2)] bg-[var(--color-surface-2)] px-2 text-[12.5px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)]"
+                        <div className="flex items-start gap-2 mt-1">
+                          <textarea
+                            rows={3}
+                            className="flex-1 rounded-lg border border-[var(--color-border-2)] bg-[var(--color-surface-2)] px-2 py-1 text-[12.5px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] resize-none"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") saveEdit(item);
+                              if (e.key === "Enter" && e.ctrlKey) saveEdit(item);
                               if (e.key === "Escape") setEditingId(null);
                             }}
                             autoFocus

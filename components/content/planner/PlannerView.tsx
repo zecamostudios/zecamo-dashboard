@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -54,8 +54,22 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
   const [addForDate, setAddForDate] = useState("");
   const [slotForm, setSlotForm] = useState({ plataforma: "linkedin" as ContentPlatform, hora: "", hook: "" });
   const [saving, setSaving] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
+
+  // Reload slots when week changes (skip offset 0 — SSR handled initial load)
+  useEffect(() => {
+    if (weekOffset === 0) return;
+    const start = weekDates[0].toISOString().slice(0, 10);
+    const end   = weekDates[6].toISOString().slice(0, 10);
+    setLoadingSlots(true);
+    fetch(`/api/content/planner?start=${start}&end=${end}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: PlannerSlot[]) => setSlots(data))
+      .catch(() => {})
+      .finally(() => setLoadingSlots(false));
+  }, [weekOffset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const slotsByDate = useMemo(() => {
     const map: Record<string, PlannerSlot[]> = {};
@@ -262,7 +276,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
       )}
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-2">
+      <div className={`grid grid-cols-7 gap-2 transition-opacity duration-200 ${loadingSlots ? "opacity-40 pointer-events-none" : ""}`}>
         {weekDates.map((date, i) => {
           const dateKey = date.toISOString().slice(0, 10);
           const daySlots = slotsByDate[dateKey] ?? [];

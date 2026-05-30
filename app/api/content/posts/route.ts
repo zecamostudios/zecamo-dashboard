@@ -6,10 +6,14 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const estado = searchParams.get("estado");
   const plataforma = searchParams.get("plataforma");
+  const tipo = searchParams.get("tipo");
+  const limit = Number(searchParams.get("limit") ?? 0);
 
   let query = supabase.from("content_posts").select("*").order("created_at", { ascending: false });
   if (estado) query = query.eq("estado", estado);
   if (plataforma) query = query.eq("plataforma", plataforma);
+  if (tipo) query = query.eq("tipo", tipo);
+  if (limit > 0) query = query.limit(limit);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
