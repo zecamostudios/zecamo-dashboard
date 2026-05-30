@@ -236,22 +236,24 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <span className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">Estado:</span>
-        <Chip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>Todos</Chip>
-        {(["revision", "aprobado", "programado", "publicado", "rechazado"] as ContentStatus[]).map((s) => (
-          <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
-            {STATUS_PILL[s].label}
-          </Chip>
-        ))}
-        <span className="w-px h-[18px] bg-[var(--color-border-2)] mx-2" />
-        <span className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">Plataforma:</span>
-        <Chip active={platformFilter === "all"} onClick={() => setPlatformFilter("all")}>Todas</Chip>
-        {(["linkedin", "twitter", "instagram", "facebook"] as ContentPlatform[]).map((p) => (
-          <Chip key={p} active={platformFilter === p} onClick={() => setPlatformFilter(p)}>
-            {PLATFORM_LABEL[p]}
-          </Chip>
-        ))}
+      <div className="overflow-x-auto pb-1 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex items-center gap-2 flex-nowrap min-w-max">
+          <span className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] shrink-0">Estado:</span>
+          <Chip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>Todos</Chip>
+          {(["revision", "aprobado", "programado", "publicado", "rechazado"] as ContentStatus[]).map((s) => (
+            <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
+              {STATUS_PILL[s].label}
+            </Chip>
+          ))}
+          <span className="w-px h-[18px] bg-[var(--color-border-2)] mx-1 shrink-0" />
+          <span className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] shrink-0">Plataforma:</span>
+          <Chip active={platformFilter === "all"} onClick={() => setPlatformFilter("all")}>Todas</Chip>
+          {(["linkedin", "twitter", "instagram", "facebook"] as ContentPlatform[]).map((p) => (
+            <Chip key={p} active={platformFilter === p} onClick={() => setPlatformFilter(p)}>
+              {PLATFORM_LABEL[p]}
+            </Chip>
+          ))}
+        </div>
       </div>
 
       {/* Queue list */}
@@ -275,21 +277,17 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                 key={post.id}
                 className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden hover:border-[var(--color-border-2)] transition-all"
               >
-                <div className="p-5 group">
-                  <div className="flex items-start gap-4">
-                    {/* Clickable area — opens detail modal */}
-                    <button
-                      onClick={() => setDetailPost(post)}
-                      className="w-10 h-10 rounded-xl bg-white/[0.04] border border-[var(--color-border)] grid place-items-center shrink-0 cursor-pointer hover:border-[var(--color-primary-hover)] transition-colors"
-                      title="Ver detalle"
-                    >
-                      <Send size={16} className={PLATFORM_COLORS[post.plataforma]} />
-                    </button>
+                <div
+                  className="p-4 sm:p-5 group cursor-pointer active:bg-white/[0.02] transition-colors"
+                  onClick={() => setDetailPost(post)}
+                >
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    {/* Platform icon */}
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.04] border border-[var(--color-border)] grid place-items-center shrink-0">
+                      <Send size={15} className={PLATFORM_COLORS[post.plataforma]} />
+                    </div>
 
-                    <div
-                      className="flex-1 min-w-0 cursor-pointer"
-                      onClick={() => setDetailPost(post)}
-                    >
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span className="text-[11.5px] font-medium text-[var(--color-text-muted)]">
                           {PLATFORM_LABEL[post.plataforma]}
@@ -327,8 +325,11 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                       )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap justify-end">
+                    {/* Desktop actions (hover reveal) */}
+                    <div
+                      className="hidden sm:flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap justify-end"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
                         onClick={() => setDetailPost(post)}
                         className="w-8 h-8 rounded-lg border border-[var(--color-border)] bg-white/[0.03] grid place-items-center text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] transition"
@@ -407,6 +408,68 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                       )}
                     </div>
                   </div>
+
+                  {/* Mobile action strip — always visible, replaces hover buttons */}
+                  <div
+                    className="flex sm:hidden items-center gap-2 mt-3 pt-3 border-t border-[var(--color-border)]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => duplicatePost(post)}
+                      className="w-8 h-8 rounded-lg border border-[var(--color-border)] bg-white/[0.03] grid place-items-center text-[var(--color-text-muted)]"
+                      title="Duplicar"
+                    >
+                      <Copy size={13} />
+                    </button>
+                    <button
+                      onClick={() => deletePost(post)}
+                      className="w-8 h-8 rounded-lg border border-[rgba(255,84,102,0.2)] bg-transparent grid place-items-center text-[var(--color-danger)]"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                    <div className="flex-1" />
+                    {post.estado === "borrador" && (
+                      <button
+                        onClick={() => submitForReview(post)}
+                        className="h-8 px-3 rounded-lg border border-[rgba(240,168,42,0.3)] bg-[rgba(240,168,42,0.08)] text-[11.5px] font-medium text-[var(--color-warning)] flex items-center gap-1.5"
+                      >
+                        <Eye size={12} /> Revisar
+                      </button>
+                    )}
+                    {post.estado === "revision" && (
+                      <>
+                        <button
+                          onClick={() => rejectPost(post)}
+                          className="w-8 h-8 rounded-lg border border-[rgba(255,84,102,0.3)] bg-[rgba(255,84,102,0.08)] grid place-items-center text-[var(--color-danger)]"
+                        >
+                          <XCircle size={14} />
+                        </button>
+                        <button
+                          onClick={() => approvePost(post)}
+                          className="w-8 h-8 rounded-lg border border-[rgba(34,197,139,0.3)] bg-[rgba(34,197,139,0.08)] grid place-items-center text-[var(--color-success)]"
+                        >
+                          <CheckCircle2 size={14} />
+                        </button>
+                      </>
+                    )}
+                    {post.estado === "aprobado" && (
+                      <button
+                        onClick={() => setSchedulePostId(post.id)}
+                        className="h-8 px-3 rounded-lg border border-[rgba(43,91,255,0.3)] bg-[rgba(43,91,255,0.08)] text-[11.5px] font-medium text-[var(--color-primary-hover)] flex items-center gap-1.5"
+                      >
+                        <Calendar size={12} /> Programar
+                      </button>
+                    )}
+                    {post.estado === "programado" && (
+                      <button
+                        onClick={() => markPublished(post)}
+                        className="h-8 px-3 rounded-lg border border-[rgba(34,197,139,0.3)] bg-[rgba(34,197,139,0.08)] text-[11.5px] font-medium text-[var(--color-success)] flex items-center gap-1.5"
+                      >
+                        <Globe size={12} /> Publicado
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Workflow events */}
@@ -442,15 +505,20 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
         </div>
       )}
 
-      {/* Post detail modal */}
+      {/* Post detail modal — bottom sheet on mobile, side panel on desktop */}
       {detailPost && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-end bg-black/60"
+          className="fixed inset-0 z-50 bg-black/60 flex sm:items-start sm:justify-end items-end"
           onClick={(e) => { if (e.target === e.currentTarget) setDetailPost(null); }}
         >
-          <div className="relative h-full w-full max-w-[560px] bg-[var(--color-surface-2)] border-l border-[var(--color-border-2)] flex flex-col overflow-hidden shadow-2xl">
+          <div className="relative w-full sm:max-w-[560px] sm:h-full max-h-[90dvh] sm:max-h-none bg-[var(--color-surface-2)] sm:border-l border-t sm:border-t-0 border-[var(--color-border-2)] flex flex-col overflow-hidden shadow-2xl rounded-t-2xl sm:rounded-none">
+            {/* Bottom sheet handle (mobile only) */}
+            <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-[var(--color-border-2)]" />
+            </div>
+
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] shrink-0">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--color-border)] shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-[var(--color-border)] grid place-items-center">
                   <Send size={14} className={PLATFORM_COLORS[detailPost.plataforma]} />
@@ -476,7 +544,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
             </div>
 
             {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 flex flex-col gap-5">
 
               {/* Hook */}
               {detailPost.hook && (
@@ -572,7 +640,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
             </div>
 
             {/* Footer actions */}
-            <div className="px-6 py-4 border-t border-[var(--color-border)] shrink-0 flex flex-wrap gap-2">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-[var(--color-border)] shrink-0 flex flex-wrap gap-2">
               <button
                 onClick={() => duplicatePost(detailPost)}
                 className="h-8 px-3 rounded-lg border border-[var(--color-border)] bg-white/[0.03] text-[11.5px] font-medium text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] transition flex items-center gap-1.5"
@@ -639,7 +707,7 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
       {/* Schedule modal */}
       {schedulePostId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-[var(--color-surface-2)] border border-[var(--color-border-2)] rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+          <div className="bg-[var(--color-surface-2)] border border-[var(--color-border-2)] rounded-2xl p-5 sm:p-6 w-full max-w-sm mx-4 sm:mx-0 shadow-2xl">
             <h3 className="text-[15px] font-semibold mb-1">Programar publicación</h3>
             <p className="text-[12.5px] text-[var(--color-text-muted)] mb-5">
               Elegí fecha y hora para la publicación automática
