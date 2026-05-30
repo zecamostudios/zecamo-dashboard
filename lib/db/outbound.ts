@@ -11,6 +11,7 @@ export async function getOutboundMessages(): Promise<OutboundMessage[]> {
   if (error || !data) return [];
   return data.map((row, i) => ({
     id: i + 1,
+    dbId: String(row.id ?? ""),
     to: String(row.para_nombre ?? ""),
     company: String(row.para_empresa ?? ""),
     owner: (String(row.owner_initials ?? "JS")) as OwnerId,

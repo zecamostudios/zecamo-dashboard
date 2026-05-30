@@ -15,6 +15,7 @@ function rowToTransaction(row: Record<string, unknown>): Transaction {
   const d = `${dd} ${monthLabel}`;
 
   return {
+    dbId: String(row.id ?? ""),
     d,
     c: String(row.concepto ?? row.descripcion ?? ""),
     line: (String(row.linea_servicio ?? "Ops")) as ServiceLine | "Ops",
@@ -28,7 +29,7 @@ export async function getTransactions(limit = 20): Promise<Transaction[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transacciones")
-    .select("fecha, tipo, concepto, descripcion, monto_usd, linea_servicio, owner_initials")
+    .select("id, fecha, tipo, concepto, descripcion, monto_usd, linea_servicio, owner_initials")
     .order("fecha", { ascending: false })
     .limit(limit);
 

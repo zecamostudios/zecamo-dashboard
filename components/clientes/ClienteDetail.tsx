@@ -1,7 +1,9 @@
 "use client";
 
-import { ChevronLeft, Mail, Plus, Folder } from "lucide-react";
+import { ChevronLeft, Mail, Plus, Folder, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 import { PROJECTS } from "@/lib/mock-data";
 import { fmtN } from "@/lib/utils";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -23,10 +25,23 @@ const STATUS_LABEL: Record<string, string> = {
 interface ClienteDetailProps {
   client: Client;
   onBack: () => void;
+  onDelete?: (dbId: string) => void;
 }
 
-export function ClienteDetail({ client, onBack }: ClienteDetailProps) {
+export function ClienteDetail({ client, onBack, onDelete }: ClienteDetailProps) {
   const router = useRouter();
+
+  async function handleDelete() {
+    if (!client.dbId) { onBack(); return; }
+    const supabase = createClient();
+    const { error } = await supabase.from("clientes").delete().eq("id", client.dbId);
+    if (error) {
+      toast.error("Error al eliminar el cliente");
+      return;
+    }
+    toast.success(`Cliente "${client.name}" eliminado`);
+    onDelete?.(client.dbId);
+  }
   const projects = PROJECTS.filter((p) => p.client === client.name);
   const payments = [
     { d: "22 May 2026", c: "Mensualidad mayo", a: client.mrr, status: "Pagado" },
@@ -52,6 +67,7 @@ export function ClienteDetail({ client, onBack }: ClienteDetailProps) {
             <Pill variant={client.status} dot>{STATUS_LABEL[client.status]}</Pill>
             <Button onClick={() => { window.location.href = `mailto:${client.contact.split(" ")[0].toLowerCase()}@${client.name.toLowerCase().replace(/\s/g, "")}.com`; }}><Mail size={13} />Mensaje</Button>
             <Button variant="primary" onClick={() => router.push("/proyectos")}><Plus size={14} />Nuevo proyecto</Button>
+            <Button onClick={handleDelete} className="text-[var(--color-danger)] border-[var(--color-danger)]/30 hover:bg-[rgba(255,80,80,0.08)]"><Trash2 size={13} />Eliminar</Button>
           </>
         }
       />

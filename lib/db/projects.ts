@@ -11,6 +11,7 @@ function rowToProject(row: Record<string, unknown>, idx: number): Project {
 
   return {
     id: idx + 1,
+    dbId: String(row.id ?? ""),
     name: String(row.nombre ?? ""),
     client: String(row.cliente_nombre ?? ""),
     line: (String(row.linea_servicio ?? "Webs")) as ServiceLine,

@@ -49,6 +49,7 @@ export type ClientStatus = "active" | "onboarding" | "paused";
 
 export interface Client {
   id: number;
+  dbId?: string;
   name: string;
   contact: string;
   line: ServiceLine;
@@ -65,6 +66,7 @@ export type Priority = "alta" | "media" | "baja";
 
 export interface Project {
   id: number;
+  dbId?: string;
   name: string;
   client: string;
   line: ServiceLine;
@@ -111,6 +113,7 @@ export interface FinancePoint {
 export type TransactionType = "in" | "out";
 
 export interface Transaction {
+  dbId?: string;
   d: string;
   c: string;
   line: ServiceLine | "Ops";
@@ -124,6 +127,7 @@ export type OutboundChannel = "Email" | "LinkedIn" | "Instagram";
 
 export interface OutboundMessage {
   id: number;
+  dbId?: string;
   to: string;
   company: string;
   owner: OwnerId;

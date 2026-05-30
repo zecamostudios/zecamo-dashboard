@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Inbox, Plus, Send, X, Check } from "lucide-react";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Pill } from "@/components/ui-zecamo/Pill";
@@ -16,8 +17,35 @@ interface CampaignListProps {
 }
 
 export function CampaignList({ templates }: CampaignListProps) {
+  const [localTemplates, setLocalTemplates] = useState<Template[]>(templates);
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
+
+  async function addTemplate(name: string) {
+    if (!name.trim()) return;
+    const supabase = createClient();
+    const saved = name.trim();
+    const optimistic: Template = {
+      id: localTemplates.length + 1,
+      name: saved,
+      uses: 0,
+      reply: 0,
+      line: "AIMA",
+      owner: "JS",
+    };
+    setLocalTemplates((prev) => [optimistic, ...prev]);
+    setShowNew(false);
+    setNewName("");
+    toast.success(`Template "${saved}" creado`);
+    const { error } = await supabase.from("outbound_templates").insert({
+      nombre: saved,
+      uses: 0,
+      reply_rate: 0,
+      linea_servicio: "AIMA",
+      owner_initials: "JS",
+    });
+    if (error) toast.error("Error al guardar en Supabase");
+  }
 
   async function copyTemplate(t: Template) {
     try {
@@ -42,11 +70,7 @@ export function CampaignList({ templates }: CampaignListProps) {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && newName.trim()) {
-                toast.success(`Template "${newName}" creado`);
-                setShowNew(false);
-                setNewName("");
-              }
+              if (e.key === "Enter") addTemplate(newName);
               if (e.key === "Escape") { setShowNew(false); setNewName(""); }
             }}
             placeholder="Nombre del template…"
@@ -54,12 +78,7 @@ export function CampaignList({ templates }: CampaignListProps) {
           />
           <button onClick={() => { setShowNew(false); setNewName(""); }} className="w-8 h-8 shrink-0 grid place-items-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] bg-transparent cursor-pointer hover:bg-white/[0.04]"><X size={14} /></button>
           <button
-            onClick={() => {
-              if (!newName.trim()) return;
-              toast.success(`Template "${newName}" creado`);
-              setShowNew(false);
-              setNewName("");
-            }}
+            onClick={() => addTemplate(newName)}
             className="w-8 h-8 shrink-0 grid place-items-center rounded-lg bg-[rgba(34,197,139,0.12)] border border-[rgba(34,197,139,0.2)] text-[var(--color-success)] cursor-pointer hover:bg-[rgba(34,197,139,0.18)]"
           >
             <Check size={14} />
@@ -80,7 +99,7 @@ export function CampaignList({ templates }: CampaignListProps) {
             </tr>
           </thead>
           <tbody>
-            {templates.map((t) => {
+            {localTemplates.map((t) => {
               const good = t.reply > 0.2;
               return (
                 <tr key={t.id} className="border-b border-[var(--color-border)] last:border-b-0">

@@ -206,7 +206,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          cliente_id: string;
+          cliente_id?: string | null;
           nombre: string;
           descripcion?: string | null;
           estado?: string;

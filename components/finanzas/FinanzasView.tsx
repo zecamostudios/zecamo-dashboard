@@ -16,6 +16,7 @@ import {
   Clock,
 } from "lucide-react";
 import { CLIENTS, FINANCE, TRANSACTIONS, BY_LINE } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
 import { fmtN } from "@/lib/utils";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -69,7 +70,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
   const fmt = (n: number) => `${symbol} ${fmtN(conv(n))}`;
 
   const allClients = initialClients ?? CLIENTS;
-  const allTransactions = initialTransactions ?? TRANSACTIONS;
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>(initialTransactions ?? TRANSACTIONS);
   const allFinance = initialFinance ?? FINANCE;
   const allByLine = initialByLine ?? BY_LINE;
 
@@ -317,7 +318,38 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             </div>
             <div className="flex gap-2 mt-6">
               <button onClick={() => setShowTxModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer transition hover:border-[var(--color-border-2)]">Cancelar</button>
-              <button onClick={() => { if (!txForm.concept.trim()) return; toast.success(`Transacción "${txForm.concept}" registrada`); setShowTxModal(false); setTxForm({ date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "" }); }} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition">
+              <button
+                onClick={async () => {
+                  if (!txForm.concept.trim()) return;
+                  const supabase = createClient();
+                  const saved = { ...txForm };
+                  const today = saved.date || new Date().toISOString().slice(0, 10);
+                  const [, , dd] = today.split("-");
+                  const MONTHS: Record<string, string> = { "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr", "05": "May", "06": "Jun", "07": "Jul", "08": "Ago", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic" };
+                  const optimistic: Transaction = {
+                    d: `${dd} ${MONTHS[today.slice(5, 7)] ?? ""}`,
+                    c: saved.concept.trim(),
+                    line: saved.line as Transaction["line"],
+                    a: Number(saved.amount) || 0,
+                    type: saved.type === "egreso" ? "out" : "in",
+                    owner: saved.owner as Transaction["owner"],
+                  };
+                  setAllTransactions((prev) => [optimistic, ...prev]);
+                  setShowTxModal(false);
+                  setTxForm({ date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "" });
+                  toast.success(`Transacción "${saved.concept}" registrada`);
+                  const { error } = await supabase.from("transacciones").insert({
+                    fecha: today,
+                    tipo: saved.type as "ingreso" | "egreso",
+                    concepto: saved.concept.trim(),
+                    monto_usd: Number(saved.amount) || 0,
+                    linea_servicio: saved.line,
+                    owner_initials: saved.owner,
+                  });
+                  if (error) toast.error("Error al guardar en Supabase");
+                }}
+                className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition"
+              >
                 Guardar
               </button>
             </div>

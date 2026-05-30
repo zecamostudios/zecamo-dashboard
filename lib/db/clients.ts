@@ -10,6 +10,7 @@ function rowToClient(row: Record<string, unknown>, idx: number): Client {
 
   return {
     id: idx + 1,
+    dbId: String(row.id ?? ""),
     name: String(row.nombre ?? ""),
     contact: String(row.contacto_nombre ?? ""),
     line: (String(row.linea_servicio ?? "Webs")) as ServiceLine,
@@ -26,7 +27,7 @@ export async function getClients(): Promise<Client[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("clientes")
-    .select("id, nombre, contacto_nombre, mrr_usd, ui_status, linea_servicio, health_score, next_action, fecha_inicio, created_at")
+    .select("id, nombre, contacto_nombre, mrr_usd, ui_status, linea_servicio, health_score, next_action, fecha_inicio")
     .order("mrr_usd", { ascending: false });
 
   if (error || !data) return [];

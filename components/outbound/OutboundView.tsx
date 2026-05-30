@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Plus, Inbox, Send, Calendar, X } from "lucide-react";
 import { toast } from "sonner";
 import { OWNERS, OUTBOUND_MESSAGES, TEMPLATES } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
 import type { OutboundMessage, OutboundStatus, OwnerId, Template } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
@@ -28,7 +29,7 @@ export function OutboundView({ initialMessages, initialTemplates }: OutboundView
   const [showMsgModal, setShowMsgModal] = useState(false);
   const [msgForm, setMsgForm] = useState({ prospect: "", platform: "linkedin", message: "" });
 
-  const allMessages = initialMessages ?? OUTBOUND_MESSAGES;
+  const [allMessages, setAllMessages] = useState<OutboundMessage[]>(initialMessages ?? OUTBOUND_MESSAGES);
   const allTemplates = initialTemplates ?? TEMPLATES;
 
   const filtered = allMessages.filter(
@@ -180,11 +181,38 @@ export function OutboundView({ initialMessages, initialTemplates }: OutboundView
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowMsgModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer transition">Cancelar</button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (!msgForm.prospect.trim()) return;
-                  toast.success(`Mensaje enviado a ${msgForm.prospect}`);
+                  const supabase = createClient();
+                  const saved = { ...msgForm };
+                  const channelMap: Record<string, OutboundMessage["channel"]> = {
+                    linkedin: "LinkedIn",
+                    email: "Email",
+                    instagram: "Instagram",
+                  };
+                  const optimistic: OutboundMessage = {
+                    id: allMessages.length + 1,
+                    to: saved.prospect.trim(),
+                    company: "",
+                    owner: "JS",
+                    channel: channelMap[saved.platform] ?? "Email",
+                    status: "enviado",
+                    sent: "Hoy",
+                    template: "",
+                  };
+                  setAllMessages((prev) => [optimistic, ...prev]);
                   setShowMsgModal(false);
                   setMsgForm({ prospect: "", platform: "linkedin", message: "" });
+                  toast.success(`Mensaje enviado a ${saved.prospect}`);
+                  const { error } = await supabase.from("outbound_mensajes").insert({
+                    para_nombre: saved.prospect.trim(),
+                    para_empresa: "",
+                    canal: channelMap[saved.platform] ?? "Email",
+                    estado: "enviado",
+                    enviado_hace: "Hoy",
+                    owner_initials: "JS",
+                  });
+                  if (error) toast.error("Error al guardar en Supabase");
                 }}
                 className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition"
               >

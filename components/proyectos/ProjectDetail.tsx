@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { ChevronLeft, ExternalLink, Plus, Check, CheckSquare, MessageSquare, Folder } from "lucide-react";
 import { toast } from "sonner";
 import { OWNERS } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
 import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
 import { Pill } from "@/components/ui-zecamo/Pill";
 import { Progress } from "@/components/ui-zecamo/Progress";
@@ -48,12 +49,22 @@ export function ProjectDetail({ project, onBack }: { project: Project; onBack: (
     setTasks((prev) => prev.map((tk, idx) => idx === i ? { ...tk, done: !tk.done } : tk));
   }
 
-  function saveTask() {
+  async function saveTask() {
     if (!newTask.trim()) return;
-    setTasks((prev) => [...prev, { t: newTask.trim(), done: false, due: "—" }]);
+    const text = newTask.trim();
+    setTasks((prev) => [...prev, { t: text, done: false, due: "—" }]);
     setNewTask("");
     setAddingTask(false);
     toast.success("Tarea agregada");
+    const supabase = createClient();
+    const { error } = await supabase.from("tareas").insert({
+      titulo: text,
+      prioridad: "media",
+      asignado_initials: project.owner,
+      estado: "todo",
+      proyecto_nombre: project.name,
+    });
+    if (error) toast.error("Error al guardar la tarea");
   }
 
   const done = tasks.filter((tk) => tk.done).length;
