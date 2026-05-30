@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       plataforma,
       estado,
       orden,
+      tipo:      "publicacion",
     });
 
     if (!slot) return NextResponse.json({ error: "Error al crear slot" }, { status: 500 });
