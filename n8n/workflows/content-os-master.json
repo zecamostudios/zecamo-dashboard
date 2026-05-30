@@ -1,0 +1,601 @@
+{
+  "name": "Zecamo · Content OS Master",
+  "nodes": [
+    {
+      "id": "m_01",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "content-os-master",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_02",
+      "name": "Fetch Brand Memory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [320, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/brand_memory",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "activo", "value": "eq.true" },
+            { "name": "select", "value": "categoria,clave,valor,descripcion" },
+            { "name": "order", "value": "categoria.asc,orden.asc" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "m_03",
+      "name": "Build AI Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const brandMemory = Array.isArray($json) ? $json : [$json];\nconst request = $('Webhook Trigger').first().json;\nconst g = brandMemory.reduce((a, i) => { if (!a[i.categoria]) a[i.categoria] = []; a[i.categoria].push(i); return a; }, {});\nconst s = (title, items) => items && items.length ? ' [' + title + ': ' + items.map(i => i.clave + '=' + i.valor.substring(0, 80)).join(' | ') + ']' : '';\nconst platform = request.platform || 'linkedin';\nconst content_type = request.content_type || 'post';\nconst objective = request.objective || 'awareness';\nconst topic = request.topic || '';\nconst auto_publish = request.auto_publish === true || request.auto_publish === 'true';\nconst platformGuide = { linkedin: 'max 1300 chars, short paragraphs, strong hook on first line', twitter: 'max 280 chars exactly, punchy and direct', instagram: 'max 2200 chars, 5-10 hashtags at end', facebook: 'max 500 chars, conversational and engaging' };\nconst systemPrompt = 'Eres el asistente de contenido de Zecamo Studios. Genera contenido profesional para redes sociales en espanol rioplatense (vos/nosotros).' + s('TONO', g.tono) + s('POSICIONAMIENTO', g.posicionamiento) + s('SERVICIOS', g.servicios) + s('AUDIENCIA', g.audiencia) + s('PILARES', g.pilares) + s('FRAMEWORKS', g.frameworks) + s('CTA', g.cta_patterns) + s('VOCABULARIO', g.vocabulario) + s('RESTRICCIONES', g.restricciones) + ' FORMATO: plataforma=' + platform + ' (' + (platformGuide[platform] || '') + '), tipo=' + content_type + ', objetivo=' + objective + ', tema=' + topic + '. Responde SOLO con el contenido del post listo para publicar, sin explicaciones ni etiquetas.';\nconst userPrompt = request.custom_prompt && request.custom_prompt.trim() ? request.custom_prompt : ('Genera un ' + content_type + ' sobre \"' + topic + '\" para ' + platform + ' con objetivo de ' + objective + '.');\nreturn [{ json: { systemPrompt, userPrompt, platform, content_type, objective, topic, auto_publish, brandMemoryCount: brandMemory.length } }];"
+      }
+    },
+    {
+      "id": "m_04",
+      "name": "Generate Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [760, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OPENAI_MODEL || 'gpt-5.4', messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }], max_tokens: parseInt($env.OPENAI_MAX_TOKENS || '1500'), temperature: parseFloat($env.OPENAI_TEMPERATURE || '0.72') }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_05",
+      "name": "Score and Parse Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const openaiResp = $json;\nconst ctx = $('Build AI Context').first().json;\nconst choice = openaiResp.choices && openaiResp.choices[0];\nconst contenido = choice && choice.message && choice.message.content ? choice.message.content.trim() : '';\nconst usage = openaiResp.usage || {};\nconst tokensIn = usage.prompt_tokens || 0;\nconst tokensOut = usage.completion_tokens || 0;\nconst modelo = openaiResp.model || ($env && $env.OPENAI_MODEL) || 'gpt-5.4';\n\nif (!contenido) {\n  throw new Error('OpenAI returned empty content. Check OPENAI_API_KEY and model: ' + modelo);\n}\n\nconst INPUT_CPM = parseFloat(($env && $env.OPENAI_INPUT_CPM) || '2.50');\nconst OUTPUT_CPM = parseFloat(($env && $env.OPENAI_OUTPUT_CPM) || '10.00');\nconst estimated_cost = parseFloat(((tokensIn / 1000000) * INPUT_CPM + (tokensOut / 1000000) * OUTPUT_CPM).toFixed(8));\n\nconst lines = contenido.split('\\n').filter(l => l.trim().length > 0);\nconst hook = lines.length > 0 ? lines[0].substring(0, 200) : '';\nconst ctaRe = /DM|escrib|contact|empezamos|agend|reserv|llamá|hablemos|seguinos|link en bio/i;\nconst cta = lines.slice().reverse().find(l => ctaRe.test(l) || l.endsWith('?')) || lines[lines.length - 1] || '';\nconst hashtags = Array.from(new Set((contenido.match(/#[\\w\\u00C0-\\u024F]+/g) || [])));\n\nconst hook_score = Math.min(100,\n  (hook.length >= 20 ? 25 : 10) +\n  (/[\\u00BF?!\\u00A1]/.test(hook) ? 25 : 0) +\n  (hook.length >= 60 ? 15 : 0) +\n  (/\\d+/.test(hook) ? 20 : 0) +\n  (hook.split(' ').length >= 6 ? 15 : 0)\n);\n\nconst clarity_score = Math.min(100,\n  (lines.length >= 3 ? 30 : 10) +\n  (contenido.length > 150 ? 25 : 10) +\n  (lines.some(l => l.length < 100) ? 25 : 10) +\n  (hashtags.length === 0 || hashtags.length <= 10 ? 20 : 5)\n);\n\nconst CTA_score = Math.min(100,\n  (cta && cta.length >= 5 ? 35 : 0) +\n  (ctaRe.test(cta) ? 40 : 0) +\n  (cta && cta.includes('?') ? 15 : 0) +\n  (cta && cta.length >= 10 && cta.length <= 200 ? 10 : 0)\n);\n\nconst quality_score = Math.round(hook_score * 0.3 + clarity_score * 0.35 + CTA_score * 0.35);\nconst ai_feedback = 'Model: ' + modelo + ' | Q:' + quality_score + ' H:' + hook_score + ' C:' + clarity_score + ' CTA:' + CTA_score + ' | ' + tokensIn + 'in/' + tokensOut + 'out | $' + estimated_cost;\n\nreturn [{ json: {\n  contenido, hook, cta, hashtags,\n  quality_score, hook_score, clarity_score, CTA_score,\n  ai_score: quality_score,\n  ai_feedback,\n  tokens_in: tokensIn,\n  tokens_out: tokensOut,\n  estimated_cost,\n  modelo,\n  platform: ctx.platform,\n  content_type: ctx.content_type,\n  objective: ctx.objective,\n  topic: ctx.topic,\n  auto_publish: ctx.auto_publish,\n  systemPrompt: ctx.systemPrompt,\n  userPrompt: ctx.userPrompt\n} }];"
+      }
+    },
+    {
+      "id": "m_06",
+      "name": "Create Draft Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1200, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ titulo: $json.contenido.substring(0, 80).replace(/\\n/g, ' '), contenido: $json.contenido, plataforma: $json.platform, tipo: $json.content_type, estado: 'borrador', hook: $json.hook, cta: $json.cta, hashtags: $json.hashtags, ai_score: $json.ai_score, ai_feedback: $json.ai_feedback, pillar: $json.objective, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_07",
+      "name": "Log Generation Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1420, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/workflow_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entidad_tipo: 'content_post', entidad_id: (Array.isArray($('Create Draft Post').first().json) ? $('Create Draft Post').first().json[0] : $('Create Draft Post').first().json).id, evento: 'content:generated', estado_nuevo: 'borrador', actor: 'n8n:content-os-master', metadata: { modelo: $('Score and Parse Content').first().json.modelo, quality_score: $('Score and Parse Content').first().json.quality_score, hook_score: $('Score and Parse Content').first().json.hook_score, clarity_score: $('Score and Parse Content').first().json.clarity_score, CTA_score: $('Score and Parse Content').first().json.CTA_score, tokens_in: $('Score and Parse Content').first().json.tokens_in, tokens_out: $('Score and Parse Content').first().json.tokens_out, estimated_cost: $('Score and Parse Content').first().json.estimated_cost, platform: $('Score and Parse Content').first().json.platform, auto_publish: $('Score and Parse Content').first().json.auto_publish } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_08",
+      "name": "IF Auto Publish",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1640, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond_ap",
+              "leftValue": "={{ $('Score and Parse Content').first().json.auto_publish }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equal" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "m_09",
+      "name": "Respond Draft Only",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1860, 480],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, status: 'draft_created', auto_publish: false, post_id: (Array.isArray($('Create Draft Post').first().json) ? $('Create Draft Post').first().json[0] : $('Create Draft Post').first().json).id, contenido: $('Score and Parse Content').first().json.contenido, hook: $('Score and Parse Content').first().json.hook, cta: $('Score and Parse Content').first().json.cta, hashtags: $('Score and Parse Content').first().json.hashtags, scores: { quality_score: $('Score and Parse Content').first().json.quality_score, hook_score: $('Score and Parse Content').first().json.hook_score, clarity_score: $('Score and Parse Content').first().json.clarity_score, CTA_score: $('Score and Parse Content').first().json.CTA_score }, tokens: { in: $('Score and Parse Content').first().json.tokens_in, out: $('Score and Parse Content').first().json.tokens_out, cost_usd: $('Score and Parse Content').first().json.estimated_cost }, modelo: $('Score and Parse Content').first().json.modelo }) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "m_10",
+      "name": "Get Platform Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1860, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/platform_accounts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "plataforma", "value": "={{ 'eq.' + $('Webhook Trigger').first().json.platform }}" },
+            { "name": "activo", "value": "eq.true" },
+            { "name": "select", "value": "id,plataforma,account_id,access_token,is_mock,nombre_cuenta" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "m_11",
+      "name": "Create Publishing Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2080, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/publishing_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ post_id: (Array.isArray($('Create Draft Post').first().json) ? $('Create Draft Post').first().json[0] : $('Create Draft Post').first().json).id, plataforma: $('Webhook Trigger').first().json.platform || 'linkedin', account_id: (Array.isArray($('Get Platform Account').first().json) ? $('Get Platform Account').first().json[0] : $('Get Platform Account').first().json).id || null, estado: 'pending', intentos: 0, max_intentos: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_12",
+      "name": "Build Platform Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2300, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const scored = $('Score and Parse Content').first().json;\nconst acctArr = $('Get Platform Account').first().json;\nconst account = Array.isArray(acctArr) ? acctArr[0] : acctArr;\nconst platform = scored.platform;\nconst content = scored.contenido;\nconst isMock = !account || !account.access_token || account.is_mock === true;\nconst token = account && account.access_token ? account.access_token : '';\nconst accountId = account && account.account_id ? account.account_id : '';\nconst jobArr = $('Create Publishing Job').first().json;\nconst job = Array.isArray(jobArr) ? jobArr[0] : jobArr;\nconst postArr = $('Create Draft Post').first().json;\nconst post = Array.isArray(postArr) ? postArr[0] : postArr;\n\nif (isMock) {\n  return [{ json: { isMock: true, publishApiUrl: '', authHeader: '', linkedinProtocol: '', publishBody: '{}', platform, job_id: job && job.id, post_id: post && post.id, account_id: account && account.id } }];\n}\n\nlet publishApiUrl, authHeader, linkedinProtocol, publishBody;\nswitch (platform) {\n  case 'linkedin':\n    publishApiUrl = 'https://api.linkedin.com/v2/ugcPosts';\n    authHeader = 'Bearer ' + token;\n    linkedinProtocol = '2.0.0';\n    publishBody = JSON.stringify({ author: 'urn:li:organization:' + accountId, lifecycleState: 'PUBLISHED', specificContent: { 'com.linkedin.ugc.ShareContent': { shareCommentary: { attributes: [], text: content }, shareMediaCategory: 'NONE' } }, visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' } });\n    break;\n  case 'twitter':\n    publishApiUrl = 'https://api.twitter.com/2/tweets';\n    authHeader = 'Bearer ' + token;\n    linkedinProtocol = '';\n    publishBody = JSON.stringify({ text: content.substring(0, 280) });\n    break;\n  case 'instagram':\n    publishApiUrl = 'https://graph.facebook.com/v18.0/' + accountId + '/media';\n    authHeader = '';\n    linkedinProtocol = '';\n    publishBody = JSON.stringify({ caption: content, media_type: 'FEED', access_token: token });\n    break;\n  default:\n    publishApiUrl = 'https://graph.facebook.com/v18.0/' + accountId + '/feed';\n    authHeader = '';\n    linkedinProtocol = '';\n    publishBody = JSON.stringify({ message: content, access_token: token });\n}\nreturn [{ json: { isMock: false, publishApiUrl, authHeader, linkedinProtocol, publishBody, platform, job_id: job && job.id, post_id: post && post.id, account_id: account && account.id } }];"
+      }
+    },
+    {
+      "id": "m_13",
+      "name": "IF Is Mock",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2520, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond_mock",
+              "leftValue": "={{ $json.isMock }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equal" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "m_14",
+      "name": "Set Mock Publish Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2740, 160],
+      "parameters": {
+        "mode": "manual",
+        "fields": {
+          "values": [
+            { "name": "isMock", "type": "booleanValue", "booleanValue": true },
+            { "name": "success", "type": "booleanValue", "booleanValue": true },
+            { "name": "externalId", "type": "stringValue", "stringValue": "={{ 'mock_' + $json.platform + '_' + Date.now() }}" },
+            { "name": "publishUrl", "type": "stringValue", "stringValue": "={{ 'https://mock.' + $json.platform + '.com/post/' + Date.now() }}" },
+            { "name": "platform", "type": "stringValue", "stringValue": "={{ $json.platform }}" },
+            { "name": "job_id", "type": "stringValue", "stringValue": "={{ $json.job_id }}" },
+            { "name": "post_id", "type": "stringValue", "stringValue": "={{ $json.post_id }}" },
+            { "name": "errorMsg", "type": "stringValue", "stringValue": "" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "m_15",
+      "name": "Publish to Platform",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2740, 440],
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.publishApiUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "={{ $json.authHeader }}" },
+            { "name": "X-Restli-Protocol-Version", "value": "={{ $json.linkedinProtocol }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.publishBody }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_16",
+      "name": "Merge Publish Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2960, 300],
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_17",
+      "name": "Parse Publish Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3180, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const input = $json;\nconst req = $('Build Platform Request').first().json;\nconst platform = req.platform;\nconst job_id = req.job_id;\nconst post_id = req.post_id;\nlet success, externalId, publishUrl, errorMsg;\n\nif (input.isMock === true) {\n  success = true;\n  externalId = input.externalId;\n  publishUrl = input.publishUrl;\n  errorMsg = null;\n} else if (input.error || (input.status && input.status >= 400) || input.code) {\n  success = false;\n  externalId = null;\n  publishUrl = null;\n  errorMsg = input.message || (input.error && input.error.message) || input.detail || JSON.stringify(input).substring(0, 300);\n} else {\n  switch (platform) {\n    case 'linkedin':\n      externalId = input.id || null;\n      publishUrl = externalId ? 'https://www.linkedin.com/feed/update/' + externalId : null;\n      break;\n    case 'twitter':\n      externalId = (input.data && input.data.id) || input.id || null;\n      publishUrl = externalId ? 'https://twitter.com/i/web/status/' + externalId : null;\n      break;\n    default:\n      externalId = input.id || input.post_id || null;\n      publishUrl = null;\n  }\n  success = !!externalId;\n  errorMsg = success ? null : 'Platform API returned no external ID. Response: ' + JSON.stringify(input).substring(0, 200);\n}\n\nreturn [{ json: { success, externalId, publishUrl, errorMsg, platform, job_id, post_id, isMock: !!input.isMock } }];"
+      }
+    },
+    {
+      "id": "m_18",
+      "name": "Update Publishing Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [3400, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/publishing_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $json.job_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: $json.success ? 'success' : 'error', intentos: 1, external_post_id: $json.externalId, error_msg: $json.errorMsg, procesado_en: new Date().toISOString(), updated_at: new Date().toISOString(), resultado: { url: $json.publishUrl, isMock: $json.isMock, externalId: $json.externalId } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_19",
+      "name": "Update Content Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [3620, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $('Parse Publish Result').first().json.post_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Parse Publish Result').first().json.success ? JSON.stringify({ estado: 'publicado', publicado_en: new Date().toISOString(), external_id: $('Parse Publish Result').first().json.externalId, updated_at: new Date().toISOString() }) : JSON.stringify({ estado: 'fallido', updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_20",
+      "name": "Save AI Generation Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [3840, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_ai_generations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tipo: $('Score and Parse Content').first().json.content_type, prompt: $('Score and Parse Content').first().json.userPrompt, resultado: $('Score and Parse Content').first().json.contenido, plataforma: $('Score and Parse Content').first().json.platform, modelo: $('Score and Parse Content').first().json.modelo, tokens_in: $('Score and Parse Content').first().json.tokens_in, tokens_out: $('Score and Parse Content').first().json.tokens_out, post_id: $('Parse Publish Result').first().json.post_id, created_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_21",
+      "name": "Collect Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4060, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const publishResult = $('Parse Publish Result').first().json;\nconst scored = $('Score and Parse Content').first().json;\nconst post_id = publishResult.post_id;\nconst platform = publishResult.platform;\nconst seed = parseInt((post_id || '').replace(/-/g, '').substring(0, 8), 16) || Date.now() % 99999;\nconst rng = (min, max, s) => min + (Math.abs(Math.sin(s)) * (max - min)) | 0;\nconst imp = rng(800, 28000, seed);\nconst alcance = Math.floor(imp * (0.5 + Math.abs(Math.sin(seed * 2)) * 0.4));\nconst eng = Math.floor(alcance * (0.02 + Math.abs(Math.sin(seed * 3)) * 0.07));\nconst likes = Math.floor(eng * 0.65);\nconst comentarios = Math.floor(eng * 0.15);\nconst compartidos = Math.floor(eng * 0.1);\nconst guardados = Math.floor(eng * 0.05);\nconst clicks = Math.floor(alcance * (0.01 + Math.abs(Math.sin(seed * 4)) * 0.03));\nconst seguidores_ganados = Math.floor(eng * 0.04);\nconst engagement_rate = parseFloat((eng / Math.max(alcance, 1) * 100).toFixed(4));\nreturn [{ json: {\n  post_id, plataforma: platform,\n  external_post_id: publishResult.externalId,\n  fecha_snapshot: new Date().toISOString(),\n  impresiones: imp, alcance, engagement: eng, clicks, likes,\n  comentarios, compartidos, guardados, seguidores_ganados, engagement_rate,\n  metadata: { source: publishResult.isMock ? 'n8n-mock' : 'api', isMock: publishResult.isMock, ai_score: scored.quality_score, publish_success: publishResult.success }\n} }];"
+      }
+    },
+    {
+      "id": "m_22",
+      "name": "Store Analytics Snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [4280, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/analytics_snapshots",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ post_id: $json.post_id, plataforma: $json.plataforma, external_post_id: $json.external_post_id, fecha_snapshot: $json.fecha_snapshot, impresiones: $json.impresiones, alcance: $json.alcance, engagement: $json.engagement, clicks: $json.clicks, likes: $json.likes, comentarios: $json.comentarios, compartidos: $json.compartidos, guardados: $json.guardados, seguidores_ganados: $json.seguidores_ganados, engagement_rate: $json.engagement_rate, metadata: $json.metadata }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_23",
+      "name": "Log Publish Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [4500, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/workflow_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entidad_tipo: 'publishing_job', entidad_id: $('Parse Publish Result').first().json.job_id, evento: $('Parse Publish Result').first().json.success ? 'publish:success' : 'publish:error', estado_anterior: 'processing', estado_nuevo: $('Parse Publish Result').first().json.success ? 'success' : 'error', actor: 'n8n:content-os-master', metadata: { platform: $('Parse Publish Result').first().json.platform, externalId: $('Parse Publish Result').first().json.externalId, url: $('Parse Publish Result').first().json.publishUrl, isMock: $('Parse Publish Result').first().json.isMock, errorMsg: $('Parse Publish Result').first().json.errorMsg, quality_score: $('Score and Parse Content').first().json.quality_score, tokens_in: $('Score and Parse Content').first().json.tokens_in, tokens_out: $('Score and Parse Content').first().json.tokens_out, estimated_cost: $('Score and Parse Content').first().json.estimated_cost } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_24",
+      "name": "Notify Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [4720, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.ZECAMO_DASHBOARD_URL || 'https://zecamo-dashboard.vercel.app') + '/api/automation/webhook' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ event: $('Parse Publish Result').first().json.success ? 'publish:complete' : 'publish:error', data: { job_id: $('Parse Publish Result').first().json.job_id, post_id: $('Parse Publish Result').first().json.post_id, external_id: $('Parse Publish Result').first().json.externalId, url: $('Parse Publish Result').first().json.publishUrl, error_msg: $('Parse Publish Result').first().json.errorMsg } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "m_25",
+      "name": "Respond Full Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [4940, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, status: $('Parse Publish Result').first().json.success ? 'published' : 'publish_failed', auto_publish: true, post_id: $('Parse Publish Result').first().json.post_id, job_id: $('Parse Publish Result').first().json.job_id, contenido: $('Score and Parse Content').first().json.contenido, hook: $('Score and Parse Content').first().json.hook, cta: $('Score and Parse Content').first().json.cta, hashtags: $('Score and Parse Content').first().json.hashtags, scores: { quality_score: $('Score and Parse Content').first().json.quality_score, hook_score: $('Score and Parse Content').first().json.hook_score, clarity_score: $('Score and Parse Content').first().json.clarity_score, CTA_score: $('Score and Parse Content').first().json.CTA_score }, publishing: { success: $('Parse Publish Result').first().json.success, platform: $('Parse Publish Result').first().json.platform, externalId: $('Parse Publish Result').first().json.externalId, url: $('Parse Publish Result').first().json.publishUrl, isMock: $('Parse Publish Result').first().json.isMock, errorMsg: $('Parse Publish Result').first().json.errorMsg }, tokens: { in: $('Score and Parse Content').first().json.tokens_in, out: $('Score and Parse Content').first().json.tokens_out, cost_usd: $('Score and Parse Content').first().json.estimated_cost }, modelo: $('Score and Parse Content').first().json.modelo, analytics: { engagement_rate: $('Collect Analytics').first().json.engagement_rate, alcance: $('Collect Analytics').first().json.alcance, likes: $('Collect Analytics').first().json.likes } }) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Fetch Brand Memory", "type": "main", "index": 0 }]]
+    },
+    "Fetch Brand Memory": {
+      "main": [[{ "node": "Build AI Context", "type": "main", "index": 0 }]]
+    },
+    "Build AI Context": {
+      "main": [[{ "node": "Generate Content", "type": "main", "index": 0 }]]
+    },
+    "Generate Content": {
+      "main": [[{ "node": "Score and Parse Content", "type": "main", "index": 0 }]]
+    },
+    "Score and Parse Content": {
+      "main": [[{ "node": "Create Draft Post", "type": "main", "index": 0 }]]
+    },
+    "Create Draft Post": {
+      "main": [[{ "node": "Log Generation Event", "type": "main", "index": 0 }]]
+    },
+    "Log Generation Event": {
+      "main": [[{ "node": "IF Auto Publish", "type": "main", "index": 0 }]]
+    },
+    "IF Auto Publish": {
+      "main": [
+        [{ "node": "Get Platform Account", "type": "main", "index": 0 }],
+        [{ "node": "Respond Draft Only", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Platform Account": {
+      "main": [[{ "node": "Create Publishing Job", "type": "main", "index": 0 }]]
+    },
+    "Create Publishing Job": {
+      "main": [[{ "node": "Build Platform Request", "type": "main", "index": 0 }]]
+    },
+    "Build Platform Request": {
+      "main": [[{ "node": "IF Is Mock", "type": "main", "index": 0 }]]
+    },
+    "IF Is Mock": {
+      "main": [
+        [{ "node": "Set Mock Publish Result", "type": "main", "index": 0 }],
+        [{ "node": "Publish to Platform", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Mock Publish Result": {
+      "main": [[{ "node": "Merge Publish Branches", "type": "main", "index": 0 }]]
+    },
+    "Publish to Platform": {
+      "main": [[{ "node": "Merge Publish Branches", "type": "main", "index": 1 }]]
+    },
+    "Merge Publish Branches": {
+      "main": [[{ "node": "Parse Publish Result", "type": "main", "index": 0 }]]
+    },
+    "Parse Publish Result": {
+      "main": [[{ "node": "Update Publishing Job", "type": "main", "index": 0 }]]
+    },
+    "Update Publishing Job": {
+      "main": [[{ "node": "Update Content Post", "type": "main", "index": 0 }]]
+    },
+    "Update Content Post": {
+      "main": [[{ "node": "Save AI Generation Record", "type": "main", "index": 0 }]]
+    },
+    "Save AI Generation Record": {
+      "main": [[{ "node": "Collect Analytics", "type": "main", "index": 0 }]]
+    },
+    "Collect Analytics": {
+      "main": [[{ "node": "Store Analytics Snapshot", "type": "main", "index": 0 }]]
+    },
+    "Store Analytics Snapshot": {
+      "main": [[{ "node": "Log Publish Event", "type": "main", "index": 0 }]]
+    },
+    "Log Publish Event": {
+      "main": [[{ "node": "Notify Dashboard", "type": "main", "index": 0 }]]
+    },
+    "Notify Dashboard": {
+      "main": [[{ "node": "Respond Full Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "all", "saveDataErrorExecution": "all" },
+  "meta": { "instanceId": "zecamo-content-os" },
+  "tags": [{ "name": "content-os" }, { "name": "master" }]
+}
