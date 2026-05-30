@@ -22,12 +22,13 @@ import {
   Trash2,
   Edit2,
   GripVertical,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Chip } from "@/components/ui-zecamo/Chip";
-import type { ContentPlatform, PlannerSlot, ContentPost } from "@/lib/types";
+import type { ContentPlatform, PlannerSlot, ContentPost, PlannerEventType } from "@/lib/types";
 
 const DAYS_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const PLATFORM_ICON: Record<ContentPlatform, typeof Globe> = {
@@ -79,16 +80,17 @@ function DraggableSlot({
 
   const PlatIcon = PLATFORM_ICON[slot.plataforma];
   const color = PLATFORM_COLOR[slot.plataforma];
+  const isGeneracion = slot.tipo === "generacion";
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`p-2.5 rounded-xl border bg-[var(--color-surface-2)] hover:border-[var(--color-border-2)] transition group relative ${
-        localDragging || isDragging
-          ? "opacity-40 border-[var(--color-primary-hover)]"
-          : "border-[var(--color-border)]"
-      }`}
+      className={`p-2.5 rounded-xl border transition group relative ${
+        isGeneracion
+          ? "bg-[rgba(43,91,255,0.04)] border-[rgba(43,91,255,0.2)] hover:border-[rgba(43,91,255,0.4)]"
+          : "bg-[var(--color-surface-2)] hover:border-[var(--color-border-2)] border-[var(--color-border)]"
+      } ${localDragging || isDragging ? "opacity-40" : ""}`}
     >
       <div className="flex items-center gap-1.5 mb-1.5">
         {/* Drag handle */}
@@ -99,16 +101,27 @@ function DraggableSlot({
         >
           <GripVertical size={11} />
         </span>
-        <PlatIcon size={11} style={{ color }} />
+        {isGeneracion ? (
+          <Sparkles size={11} className="text-[var(--color-primary-hover)]" />
+        ) : (
+          <PlatIcon size={11} style={{ color }} />
+        )}
         {slot.hora && (
           <span className="font-mono text-[10px] text-[var(--color-text-dim)]">
             {slot.hora.slice(0, 5)}
           </span>
         )}
+        {isGeneracion && (
+          <span className="text-[9px] font-medium uppercase tracking-wide text-[var(--color-primary-hover)] bg-[rgba(43,91,255,0.10)] px-1.5 py-0.5 rounded-full">
+            IA
+          </span>
+        )}
         <span
           className={
             "ml-auto w-1.5 h-1.5 rounded-full " +
-            (slot.estado === "publicado"
+            (isGeneracion
+              ? "bg-[var(--color-primary-hover)]"
+              : slot.estado === "publicado"
               ? "bg-[var(--color-success)]"
               : slot.estado === "programado"
               ? "bg-[var(--color-primary-hover)]"
