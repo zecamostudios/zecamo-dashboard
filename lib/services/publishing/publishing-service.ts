@@ -68,11 +68,18 @@ export async function publishPost(
     );
   }
 
-  // 3. Load platform account
-  const account = await getPlatformAccountByPlatform(platform);
-  if (!account) {
-    throw new PublishingError(`No active account found for ${platform}`);
-  }
+  // 3. Load platform account (optional for Zernio-backed adapters)
+  const account = await getPlatformAccountByPlatform(platform) ?? {
+    id: "zernio",
+    plataforma: platform,
+    account_id: "zernio",
+    access_token: "",
+    is_mock: false,
+    activo: true,
+    nombre_cuenta: "Zernio",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 
   // 4. Create publishing_job record
   const job = await createPublishingJob({
