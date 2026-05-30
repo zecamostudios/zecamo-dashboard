@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { transitionPost, WorkflowError } from "@/lib/services/workflow-service";
 import { getWorkflowEvents } from "@/lib/db/content/workflow";
+import { requireAuth } from "@/lib/supabase/auth-guard";
 import type { ContentStatus } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const postId = searchParams.get("post_id");
@@ -17,6 +21,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { post_id, from, to, actor, metadata } = (await req.json()) as {
       post_id: string;

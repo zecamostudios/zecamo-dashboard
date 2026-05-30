@@ -85,6 +85,7 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
         { href: "/content/queue", label: "Queue", icon: ListVideo },
         { href: "/content/planner", label: "Planner", icon: CalendarDays },
         { href: "/content/assets", label: "Assets", icon: Images },
+        { href: "/content/analytics", label: "Analytics", icon: BarChart3 },
         { href: "/content/automations",  label: "Automations",  icon: Workflow },
         { href: "/content/brand-memory", label: "Brand Memory", icon: Brain },
       ],

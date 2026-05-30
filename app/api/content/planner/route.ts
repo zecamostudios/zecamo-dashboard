@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getPlannerSlots, createPlannerSlot } from "@/lib/db/content/planner";
+import { requireAuth } from "@/lib/supabase/auth-guard";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const start = searchParams.get("start") ?? new Date().toISOString().slice(0, 10);
@@ -15,6 +19,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await req.json();
     const { post_id, fecha, hora, plataforma, estado = "programado", orden = 0 } = body;
@@ -23,7 +30,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "fecha y plataforma son requeridos" }, { status: 400 });
     }
 
-    // If no post_id given, create a draft post first
     let resolvedPostId = post_id;
     if (!resolvedPostId) {
       const supabase = await createClient();

@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateContent } from "@/lib/ai/generation-service";
 import { buildRequest } from "@/lib/ai/prompt-service";
 import { getBrandMemoryForPrompt } from "@/lib/ai/memory-service";
+import { requireAuth } from "@/lib/supabase/auth-guard";
 import type { AIGenerationType, ContentPlatform } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { tipo, plataforma, prompt, context } = (await req.json()) as {
       tipo: AIGenerationType;

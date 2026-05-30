@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAnalyticsSnapshots, upsertSnapshot, getTopPerformingPosts } from "@/lib/db/content/analytics";
+import { requireAuth } from "@/lib/supabase/auth-guard";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const postId = searchParams.get("post_id");
@@ -21,6 +25,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await req.json();
     const result = await upsertSnapshot(body);

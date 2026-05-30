@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scorePost } from "@/lib/ai/scoring-service";
+import { requireAuth } from "@/lib/supabase/auth-guard";
 import type { AIGenerationType, ContentPlatform } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { content, tipo, plataforma } = (await req.json()) as {
       content: string;

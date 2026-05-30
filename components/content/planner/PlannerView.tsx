@@ -2,6 +2,17 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  useDroppable,
+  useDraggable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -9,6 +20,8 @@ import {
   Send,
   X,
   Trash2,
+  Edit2,
+  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -42,6 +55,110 @@ function getWeekDates(offset = 0): Date[] {
   });
 }
 
+// ── Draggable slot card ──────────────────────────────────────────────────────
+
+function DraggableSlot({
+  slot,
+  onDelete,
+  onEdit,
+  isDragging,
+}: {
+  slot: PlannerSlot;
+  onDelete: (id: string) => void;
+  onEdit: (slot: PlannerSlot) => void;
+  isDragging?: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging: localDragging } = useDraggable({
+    id: slot.id,
+    data: { slot },
+  });
+
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` }
+    : undefined;
+
+  const PlatIcon = PLATFORM_ICON[slot.plataforma];
+  const color = PLATFORM_COLOR[slot.plataforma];
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`p-2.5 rounded-xl border bg-[var(--color-surface-2)] hover:border-[var(--color-border-2)] transition group relative ${
+        localDragging || isDragging
+          ? "opacity-40 border-[var(--color-primary-hover)]"
+          : "border-[var(--color-border)]"
+      }`}
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        {/* Drag handle */}
+        <span
+          {...listeners}
+          {...attributes}
+          className="text-[var(--color-text-dim)] opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition"
+        >
+          <GripVertical size={11} />
+        </span>
+        <PlatIcon size={11} style={{ color }} />
+        {slot.hora && (
+          <span className="font-mono text-[10px] text-[var(--color-text-dim)]">
+            {slot.hora.slice(0, 5)}
+          </span>
+        )}
+        <span
+          className={
+            "ml-auto w-1.5 h-1.5 rounded-full " +
+            (slot.estado === "publicado"
+              ? "bg-[var(--color-success)]"
+              : slot.estado === "programado"
+              ? "bg-[var(--color-primary-hover)]"
+              : "bg-[var(--color-warning)]")
+          }
+        />
+      </div>
+      {slot.post?.hook && (
+        <p className="text-[11px] text-[var(--color-text)] leading-snug line-clamp-2">
+          {slot.post.hook}
+        </p>
+      )}
+
+      {/* Actions on hover */}
+      <div className="absolute top-1.5 right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(slot); }}
+          className="w-5 h-5 rounded grid place-items-center text-[var(--color-text-muted)] bg-transparent border-0 cursor-pointer hover:text-[var(--color-text)] transition"
+        >
+          <Edit2 size={9} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(slot.id); }}
+          className="w-5 h-5 rounded grid place-items-center text-[var(--color-danger)] bg-transparent border-0 cursor-pointer hover:bg-[rgba(255,84,102,0.1)] transition"
+        >
+          <Trash2 size={9} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Droppable day column ──────────────────────────────────────────────────────
+
+function DroppableDay({ dateKey, children }: { dateKey: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: dateKey });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 p-2 flex flex-col gap-1.5 rounded-b-2xl transition-colors ${
+        isOver ? "bg-[rgba(43,91,255,0.06)]" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 interface PlannerViewProps {
   initialSlots?: PlannerSlot[];
 }
@@ -55,10 +172,17 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
   const [slotForm, setSlotForm] = useState({ plataforma: "linkedin" as ContentPlatform, hora: "", hook: "" });
   const [saving, setSaving] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [activeSlot, setActiveSlot] = useState<PlannerSlot | null>(null);
+  const [editingSlot, setEditingSlot] = useState<PlannerSlot | null>(null);
+  const [editForm, setEditForm] = useState({ plataforma: "linkedin" as ContentPlatform, hora: "", hook: "" });
+  const [editSaving, setEditSaving] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
 
-  // Reload slots when week changes (skip offset 0 — SSR handled initial load)
   useEffect(() => {
     if (weekOffset === 0) return;
     const start = weekDates[0].toISOString().slice(0, 10);
@@ -91,17 +215,25 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
     return `${fmt(first)} — ${fmt(last)}`;
   }, [weekDates]);
 
-  function openModal(date?: string) {
+  function openAddModal(date?: string) {
     setAddForDate(date ?? new Date().toISOString().slice(0, 10));
     setSlotForm({ plataforma: "linkedin", hora: "", hook: "" });
     setShowModal(true);
+  }
+
+  function openEditModal(slot: PlannerSlot) {
+    setEditingSlot(slot);
+    setEditForm({
+      plataforma: slot.plataforma,
+      hora:       slot.hora ?? "",
+      hook:       slot.post?.hook ?? "",
+    });
   }
 
   async function addSlot() {
     if (!slotForm.hook.trim() || saving) return;
     setSaving(true);
 
-    // Optimistic insert with temp id
     const tempId = `temp_${Date.now()}`;
     const now = new Date().toISOString();
     const optimisticPost: ContentPost = {
@@ -140,9 +272,8 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
           titulo:     slotForm.hook,
         }),
       });
-      if (!res.ok) throw new Error("Error al guardar");
+      if (!res.ok) throw new Error();
       const saved = await res.json() as PlannerSlot;
-      // Replace optimistic slot with real one
       setSlots((prev) =>
         prev.map((s) => s.id === tempId ? { ...saved, post: optimisticPost } : s),
       );
@@ -152,6 +283,52 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
       toast.error("Error al guardar el slot");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveEdit() {
+    if (!editingSlot || editSaving) return;
+    setEditSaving(true);
+    const prev = editingSlot;
+
+    setSlots((s) =>
+      s.map((x) =>
+        x.id === editingSlot.id
+          ? {
+              ...x,
+              plataforma: editForm.plataforma,
+              hora:       editForm.hora || undefined,
+              post:       x.post ? { ...x.post, hook: editForm.hook } : x.post,
+            }
+          : x,
+      ),
+    );
+    setEditingSlot(null);
+
+    try {
+      await fetch(`/api/content/planner/${prev.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plataforma: editForm.plataforma,
+          hora:       editForm.hora || null,
+        }),
+      });
+      if (prev.post_id && editForm.hook.trim()) {
+        await fetch(`/api/content/posts/${prev.post_id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hook: editForm.hook, titulo: editForm.hook }),
+        });
+      }
+      toast.success("Slot actualizado");
+    } catch {
+      setSlots((s) =>
+        s.map((x) => x.id === prev.id ? prev : x),
+      );
+      toast.error("Error al actualizar");
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -166,6 +343,40 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
     }
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    const slot = (event.active.data.current as { slot: PlannerSlot }).slot;
+    setActiveSlot(slot);
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveSlot(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const slotId = active.id as string;
+    const newDate = over.id as string;
+    const slot = slots.find((s) => s.id === slotId);
+    if (!slot || slot.fecha === newDate) return;
+
+    // Optimistic update
+    setSlots((prev) =>
+      prev.map((s) => s.id === slotId ? { ...s, fecha: newDate } : s),
+    );
+
+    try {
+      await fetch(`/api/content/planner/${slotId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fecha: newDate }),
+      });
+    } catch {
+      setSlots((prev) =>
+        prev.map((s) => s.id === slotId ? { ...s, fecha: slot.fecha } : s),
+      );
+      toast.error("Error al mover el slot");
+    }
+  }
+
   const isToday = (d: Date) => {
     const t = new Date();
     return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
@@ -177,7 +388,7 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
         title="Planner"
         subtitle="Organizá y programá tu contenido semana por semana"
         actions={
-          <Button variant="primary" onClick={() => openModal()}>
+          <Button variant="primary" onClick={() => openAddModal()}>
             <Plus size={14} /> Agregar slot
           </Button>
         }
@@ -228,141 +439,192 @@ export function PlannerView({ initialSlots = [] }: PlannerViewProps) {
             className="relative z-10 w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-[15px] font-semibold">Agregar slot · {addForDate}</h2>
-              <button onClick={() => setShowModal(false)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer"><X size={16} /></button>
-            </div>
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Plataforma</label>
-                <select
-                  value={slotForm.plataforma}
-                  onChange={(e) => setSlotForm((f) => ({ ...f, plataforma: e.target.value as ContentPlatform }))}
-                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition appearance-none"
-                >
-                  <option value="linkedin">LinkedIn</option>
-                  <option value="twitter">X / Twitter</option>
-                  <option value="instagram">Instagram</option>
-                  <option value="facebook">Facebook</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Hora (opcional)</label>
-                <input
-                  type="time"
-                  value={slotForm.hora}
-                  onChange={(e) => setSlotForm((f) => ({ ...f, hora: e.target.value }))}
-                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Hook / título *</label>
-                <textarea
-                  autoFocus
-                  rows={3}
-                  value={slotForm.hook}
-                  onChange={(e) => setSlotForm((f) => ({ ...f, hook: e.target.value }))}
-                  placeholder="¿De qué trata este post?"
-                  className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition resize-none"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 mt-6">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer hover:text-[var(--color-text)] transition">Cancelar</button>
-              <button onClick={addSlot} disabled={!slotForm.hook.trim() || saving} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-50">{saving ? "Guardando..." : "Agregar slot"}</button>
-            </div>
+            <SlotModalContent
+              title={`Agregar slot · ${addForDate}`}
+              form={slotForm}
+              onChange={setSlotForm}
+              onCancel={() => setShowModal(false)}
+              onSave={addSlot}
+              saving={saving}
+              saveLabel="Agregar slot"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Edit slot modal */}
+      {editingSlot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditingSlot(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SlotModalContent
+              title={`Editar slot · ${editingSlot.fecha}`}
+              form={editForm}
+              onChange={setEditForm}
+              onCancel={() => setEditingSlot(null)}
+              onSave={saveEdit}
+              saving={editSaving}
+              saveLabel="Guardar cambios"
+            />
           </div>
         </div>
       )}
 
       {/* Calendar grid */}
-      <div className={`grid grid-cols-7 gap-2 transition-opacity duration-200 ${loadingSlots ? "opacity-40 pointer-events-none" : ""}`}>
-        {weekDates.map((date, i) => {
-          const dateKey = date.toISOString().slice(0, 10);
-          const daySlots = slotsByDate[dateKey] ?? [];
-          const today = isToday(date);
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className={`grid grid-cols-7 gap-2 transition-opacity duration-200 ${loadingSlots ? "opacity-40 pointer-events-none" : ""}`}>
+          {weekDates.map((date, i) => {
+            const dateKey = date.toISOString().slice(0, 10);
+            const daySlots = slotsByDate[dateKey] ?? [];
+            const today = isToday(date);
 
-          return (
-            <div
-              key={dateKey}
-              className={
-                "rounded-2xl border flex flex-col min-h-[240px] " +
-                (today
-                  ? "border-[rgba(43,91,255,0.4)] bg-gradient-to-b from-[rgba(43,91,255,0.08)] to-[rgba(43,91,255,0.02)]"
-                  : "border-[var(--color-border)] bg-[var(--color-surface)]")
-              }
-            >
-              {/* Day header */}
-              <div className="p-3 pb-2 border-b border-[var(--color-border)]">
-                <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] font-medium">
-                  {DAYS_ES[i]}
-                </div>
-                <div
-                  className={
-                    "font-[family-name:var(--font-display)] text-[22px] font-medium leading-none mt-0.5 " +
-                    (today ? "text-[var(--color-primary-hover)]" : "text-[var(--color-text)]")
-                  }
-                >
-                  {date.getDate()}
-                </div>
-                {daySlots.length > 0 && (
-                  <div className="font-mono text-[10px] text-[var(--color-text-dim)] mt-0.5">
-                    {daySlots.length} post{daySlots.length > 1 ? "s" : ""}
+            return (
+              <div
+                key={dateKey}
+                className={
+                  "rounded-2xl border flex flex-col min-h-[240px] " +
+                  (today
+                    ? "border-[rgba(43,91,255,0.4)] bg-gradient-to-b from-[rgba(43,91,255,0.08)] to-[rgba(43,91,255,0.02)]"
+                    : "border-[var(--color-border)] bg-[var(--color-surface)]")
+                }
+              >
+                {/* Day header */}
+                <div className="p-3 pb-2 border-b border-[var(--color-border)]">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] font-medium">
+                    {DAYS_ES[i]}
                   </div>
-                )}
-              </div>
-
-              {/* Slots */}
-              <div className="flex-1 p-2 flex flex-col gap-1.5">
-                {daySlots.map((slot) => {
-                  const PlatIcon = PLATFORM_ICON[slot.plataforma];
-                  const color = PLATFORM_COLOR[slot.plataforma];
-                  return (
-                    <div
-                      key={slot.id}
-                      className="p-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-border-2)] transition cursor-pointer group relative"
-                    >
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <PlatIcon size={11} style={{ color }} />
-                        {slot.hora && (
-                          <span className="font-mono text-[10px] text-[var(--color-text-dim)]">
-                            {slot.hora.slice(0, 5)}
-                          </span>
-                        )}
-                        <span
-                          className={
-                            "ml-auto w-1.5 h-1.5 rounded-full " +
-                            (slot.estado === "publicado"
-                              ? "bg-[var(--color-success)]"
-                              : slot.estado === "programado"
-                              ? "bg-[var(--color-primary-hover)]"
-                              : "bg-[var(--color-warning)]")
-                          }
-                        />
-                      </div>
-                      {slot.post?.hook && (
-                        <p className="text-[11px] text-[var(--color-text)] leading-snug line-clamp-2">
-                          {slot.post.hook}
-                        </p>
-                      )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteSlot(slot.id); }}
-                        className="absolute top-1.5 right-1.5 w-5 h-5 rounded grid place-items-center text-[var(--color-danger)] opacity-0 group-hover:opacity-100 transition bg-transparent border-0 cursor-pointer hover:bg-[rgba(255,84,102,0.1)]"
-                      >
-                        <Trash2 size={10} />
-                      </button>
+                  <div
+                    className={
+                      "font-[family-name:var(--font-display)] text-[22px] font-medium leading-none mt-0.5 " +
+                      (today ? "text-[var(--color-primary-hover)]" : "text-[var(--color-text)]")
+                    }
+                  >
+                    {date.getDate()}
+                  </div>
+                  {daySlots.length > 0 && (
+                    <div className="font-mono text-[10px] text-[var(--color-text-dim)] mt-0.5">
+                      {daySlots.length} post{daySlots.length > 1 ? "s" : ""}
                     </div>
-                  );
-                })}
+                  )}
+                </div>
 
-                {/* Add slot button */}
-                <button onClick={() => openModal(dateKey)} className="mt-auto w-full py-2 rounded-xl border border-dashed border-[var(--color-border)] text-[var(--color-text-dim)] text-[11px] hover:border-[var(--color-border-2)] hover:text-[var(--color-text-muted)] transition cursor-pointer bg-transparent flex items-center justify-center gap-1">
-                  <Plus size={11} /> Agregar
-                </button>
+                <DroppableDay dateKey={dateKey}>
+                  {daySlots.map((slot) => (
+                    <DraggableSlot
+                      key={slot.id}
+                      slot={slot}
+                      onDelete={deleteSlot}
+                      onEdit={openEditModal}
+                      isDragging={activeSlot?.id === slot.id}
+                    />
+                  ))}
+                  <button
+                    onClick={() => openAddModal(dateKey)}
+                    className="mt-auto w-full py-2 rounded-xl border border-dashed border-[var(--color-border)] text-[var(--color-text-dim)] text-[11px] hover:border-[var(--color-border-2)] hover:text-[var(--color-text-muted)] transition cursor-pointer bg-transparent flex items-center justify-center gap-1"
+                  >
+                    <Plus size={11} /> Agregar
+                  </button>
+                </DroppableDay>
               </div>
+            );
+          })}
+        </div>
+
+        {/* Drag overlay */}
+        <DragOverlay>
+          {activeSlot && (
+            <div className="p-2.5 rounded-xl border border-[var(--color-primary-hover)] bg-[var(--color-surface-2)] shadow-xl opacity-90 w-[120px]">
+              <p className="text-[11px] text-[var(--color-text)] line-clamp-2">
+                {activeSlot.post?.hook ?? activeSlot.plataforma}
+              </p>
             </div>
-          );
-        })}
+          )}
+        </DragOverlay>
+      </DndContext>
+    </>
+  );
+}
+
+// ── Shared slot form ─────────────────────────────────────────────────────────
+
+interface SlotFormState {
+  plataforma: ContentPlatform;
+  hora: string;
+  hook: string;
+}
+
+function SlotModalContent({
+  title,
+  form,
+  onChange,
+  onCancel,
+  onSave,
+  saving,
+  saveLabel,
+}: {
+  title: string;
+  form: SlotFormState;
+  onChange: (f: SlotFormState) => void;
+  onCancel: () => void;
+  onSave: () => void;
+  saving: boolean;
+  saveLabel: string;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <button onClick={onCancel} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer">
+          <X size={16} />
+        </button>
+      </div>
+      <div className="space-y-3.5">
+        <div>
+          <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Plataforma</label>
+          <select
+            value={form.plataforma}
+            onChange={(e) => onChange({ ...form, plataforma: e.target.value as ContentPlatform })}
+            className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition appearance-none"
+          >
+            <option value="linkedin">LinkedIn</option>
+            <option value="twitter">X / Twitter</option>
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Hora (opcional)</label>
+          <input
+            type="time"
+            value={form.hora}
+            onChange={(e) => onChange({ ...form, hora: e.target.value })}
+            className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition"
+          />
+        </div>
+        <div>
+          <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Hook / título *</label>
+          <textarea
+            autoFocus
+            rows={3}
+            value={form.hook}
+            onChange={(e) => onChange({ ...form, hook: e.target.value })}
+            placeholder="¿De qué trata este post?"
+            className="w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition resize-none"
+          />
+        </div>
+      </div>
+      <div className="flex gap-2 mt-6">
+        <button onClick={onCancel} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer hover:text-[var(--color-text)] transition">Cancelar</button>
+        <button
+          onClick={onSave}
+          disabled={!form.hook.trim() || saving}
+          className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-50"
+        >
+          {saving ? "Guardando..." : saveLabel}
+        </button>
       </div>
     </>
   );

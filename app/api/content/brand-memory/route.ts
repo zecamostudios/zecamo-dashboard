@@ -6,13 +6,20 @@ import {
   deleteBrandMemory,
   toggleBrandMemory,
 } from "@/lib/db/content/brand-memory";
+import { requireAuth } from "@/lib/supabase/auth-guard";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   const data = await getBrandMemory();
   return NextResponse.json(data);
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await req.json();
     const { categoria, clave, valor, activo = true, orden = 0 } = body;
@@ -30,6 +37,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { id, ...updates } = await req.json();
     if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
@@ -46,6 +56,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
