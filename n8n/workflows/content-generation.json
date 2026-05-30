@@ -1,0 +1,291 @@
+{
+  "name": "Zecamo · Content Generation",
+  "nodes": [
+    {
+      "id": "cg_01",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "content-generation",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "cg_02",
+      "name": "Get Brand Memory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [320, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/brand_memory",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "activo", "value": "eq.true" },
+            { "name": "select", "value": "categoria,clave,valor,descripcion" },
+            { "name": "order", "value": "categoria.asc,orden.asc" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cg_03",
+      "name": "Build System Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const brandMemory = Array.isArray($json) ? $json : [$json];\nconst request = $('Webhook').first().json;\n\n// Group brand memory by category\nconst grouped = brandMemory.reduce((acc, item) => {\n  if (!acc[item.categoria]) acc[item.categoria] = [];\n  acc[item.categoria].push({ clave: item.clave, valor: item.valor });\n  return acc;\n}, {});\n\nconst section = (title, items) => items && items.length\n  ? `\\n## ${title}\\n` + items.map(i => `- ${i.clave}: ${i.valor}`).join('\\n')\n  : '';\n\nconst systemPrompt = `Eres el asistente de contenido de Zecamo Studios. Generás contenido de alta calidad para redes sociales basado en la memoria de marca de la agencia.${section('TONO Y ESTILO', grouped.tono)}${section('POSICIONAMIENTO', grouped.posicionamiento)}${section('SERVICIOS', grouped.servicios)}${section('AUDIENCIA OBJETIVO', grouped.audiencia)}${section('PILARES DE CONTENIDO', grouped.pilares)}${section('FRAMEWORKS', grouped.frameworks)}${section('CTA PATTERNS', grouped.cta_patterns)}${section('VOCABULARIO A USAR', grouped.vocabulario)}${section('RESTRICCIONES', grouped.restricciones)}\n\n## INSTRUCCIONES\n- Plataforma objetivo: ${request.plataforma || 'linkedin'}\n- Tipo de contenido: ${request.tipo || 'post'}\n- Pilar: ${request.pillar || 'no especificado'}\n- Generá contenido original que refleje exactamente el tono y posicionamiento de la marca.\n- El post debe incluir: hook impactante, desarrollo con valor real, CTA claro.\n- Para LinkedIn: máximo 1300 caracteres, formato de párrafos cortos.\n- Para Instagram: máximo 2200 caracteres, incluir hashtags relevantes.\n- Para Twitter: máximo 280 caracteres, directo e impactante.\n- Respondé SOLO con el contenido del post, sin explicaciones adicionales.`;\n\nreturn [{ json: {\n  systemPrompt,\n  userPrompt: request.prompt || `Generá un post sobre automatización con IA para ${request.plataforma || 'linkedin'}`,\n  plataforma: request.plataforma || 'linkedin',\n  tipo: request.tipo || 'post',\n  pillar: request.pillar || null,\n  existingPostId: request.post_id || null,\n  brandMemoryCount: brandMemory.length\n} }];"
+      }
+    },
+    {
+      "id": "cg_04",
+      "name": "Call OpenAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [760, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OPENAI_MODEL || 'gpt-4o', messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }], max_tokens: parseInt($env.OPENAI_MAX_TOKENS || '1500'), temperature: parseFloat($env.OPENAI_TEMPERATURE || '0.7') }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "cg_05",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const openaiResponse = $json;\nconst request = $('Build System Prompt').first().json;\n\nconst choice = openaiResponse.choices && openaiResponse.choices[0];\nconst contenido = choice?.message?.content || '';\nconst usage = openaiResponse.usage || {};\nconst tokensIn = usage.prompt_tokens || 0;\nconst tokensOut = usage.completion_tokens || 0;\nconst modelo = openaiResponse.model || 'gpt-4o';\n\n// Extract hook (first 200 chars or first line)\nconst lines = contenido.split('\\n').filter(l => l.trim());\nconst hook = lines[0]?.substring(0, 200) || contenido.substring(0, 200);\n\n// Extract CTA (last line or sentence with action words)\nconst lastLine = lines[lines.length - 1] || '';\nconst ctaPatterns = /\\?|DM|escribi|escribime|contáctame|empezamos|agendá|reservá/i;\nconst cta = ctaPatterns.test(lastLine) ? lastLine : lines.find(l => ctaPatterns.test(l)) || '';\n\n// Extract hashtags\nconst hashtagMatches = contenido.match(/#[\\w\\u00C0-\\u024F]+/g) || [];\nconst hashtags = [...new Set(hashtagMatches)];\n\n// Score (0-100)\nlet score = 0;\nif (contenido.length > 100) score += 20;\nif (hook && hook.length > 20) score += 20;\nif (cta && cta.length > 5) score += 20;\nif (hashtags.length >= 3) score += 20;\nif (contenido.includes('?') || contenido.match(/[!¿]/)) score += 10;\nif (tokensOut > 200) score += 10;\n\nreturn [{ json: {\n  contenido,\n  hook,\n  cta,\n  hashtags,\n  ai_score: score,\n  ai_feedback: `Generated with ${modelo}. Score: ${score}/100. Tokens: ${tokensIn} in / ${tokensOut} out.`,\n  tokens_in: tokensIn,\n  tokens_out: tokensOut,\n  modelo,\n  plataforma: request.plataforma,\n  tipo: request.tipo,\n  pillar: request.pillar,\n  existingPostId: request.existingPostId,\n  userPrompt: request.userPrompt\n} }];"
+      }
+    },
+    {
+      "id": "cg_06",
+      "name": "Has Existing Post",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond_post",
+              "leftValue": "={{ $json.existingPostId }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "cg_07",
+      "name": "Update Existing Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1420, 160],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $json.existingPostId }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contenido: $json.contenido, hook: $json.hook, cta: $json.cta, hashtags: $json.hashtags, ai_score: $json.ai_score, ai_feedback: $json.ai_feedback, estado: 'revision', updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "cg_08",
+      "name": "Create New Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1420, 440],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ titulo: ($json.contenido || '').substring(0, 80), contenido: $json.contenido, plataforma: $json.plataforma, tipo: $json.tipo, estado: 'revision', hook: $json.hook, cta: $json.cta, hashtags: $json.hashtags, ai_score: $json.ai_score, ai_feedback: $json.ai_feedback, pillar: $json.pillar, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "cg_09",
+      "name": "Merge Post Result",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1640, 300],
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      }
+    },
+    {
+      "id": "cg_10",
+      "name": "Resolve Post ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1860, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const postResponse = Array.isArray($json) ? $json[0] : $json;\nconst genData = $('Parse AI Response').first().json;\nreturn [{ json: {\n  post_id: postResponse.id,\n  contenido: genData.contenido,\n  hook: genData.hook,\n  cta: genData.cta,\n  hashtags: genData.hashtags,\n  ai_score: genData.ai_score,\n  tokens_in: genData.tokens_in,\n  tokens_out: genData.tokens_out,\n  modelo: genData.modelo,\n  plataforma: genData.plataforma,\n  tipo: genData.tipo,\n  userPrompt: genData.userPrompt\n} }];"
+      }
+    },
+    {
+      "id": "cg_11",
+      "name": "Save AI Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2080, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_ai_generations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tipo: $json.tipo, prompt: $json.userPrompt, resultado: $json.contenido, plataforma: $json.plataforma, modelo: $json.modelo, tokens_in: $json.tokens_in, tokens_out: $json.tokens_out, post_id: $json.post_id, created_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "cg_12",
+      "name": "Log Generation Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2300, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/workflow_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entidad_tipo: 'content_post', entidad_id: $('Resolve Post ID').first().json.post_id, evento: 'content:generated', estado_nuevo: 'revision', actor: 'n8n:content-generation', metadata: { ai_score: $('Resolve Post ID').first().json.ai_score, modelo: $('Resolve Post ID').first().json.modelo, tokens_in: $('Resolve Post ID').first().json.tokens_in, tokens_out: $('Resolve Post ID').first().json.tokens_out, plataforma: $('Resolve Post ID').first().json.plataforma } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "cg_13",
+      "name": "Respond with Post",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, post_id: $('Resolve Post ID').first().json.post_id, contenido: $('Resolve Post ID').first().json.contenido, hook: $('Resolve Post ID').first().json.hook, cta: $('Resolve Post ID').first().json.cta, hashtags: $('Resolve Post ID').first().json.hashtags, ai_score: $('Resolve Post ID').first().json.ai_score, tokens_in: $('Resolve Post ID').first().json.tokens_in, tokens_out: $('Resolve Post ID').first().json.tokens_out, modelo: $('Resolve Post ID').first().json.modelo }) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Get Brand Memory", "type": "main", "index": 0 }]]
+    },
+    "Get Brand Memory": {
+      "main": [[{ "node": "Build System Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build System Prompt": {
+      "main": [[{ "node": "Call OpenAI", "type": "main", "index": 0 }]]
+    },
+    "Call OpenAI": {
+      "main": [[{ "node": "Parse AI Response", "type": "main", "index": 0 }]]
+    },
+    "Parse AI Response": {
+      "main": [[{ "node": "Has Existing Post", "type": "main", "index": 0 }]]
+    },
+    "Has Existing Post": {
+      "main": [
+        [{ "node": "Update Existing Post", "type": "main", "index": 0 }],
+        [{ "node": "Create New Post", "type": "main", "index": 0 }]
+      ]
+    },
+    "Update Existing Post": {
+      "main": [[{ "node": "Merge Post Result", "type": "main", "index": 0 }]]
+    },
+    "Create New Post": {
+      "main": [[{ "node": "Merge Post Result", "type": "main", "index": 1 }]]
+    },
+    "Merge Post Result": {
+      "main": [[{ "node": "Resolve Post ID", "type": "main", "index": 0 }]]
+    },
+    "Resolve Post ID": {
+      "main": [[{ "node": "Save AI Generation", "type": "main", "index": 0 }]]
+    },
+    "Save AI Generation": {
+      "main": [[{ "node": "Log Generation Event", "type": "main", "index": 0 }]]
+    },
+    "Log Generation Event": {
+      "main": [[{ "node": "Respond with Post", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "zecamo-content-os" },
+  "tags": [{ "name": "content-os" }]
+}

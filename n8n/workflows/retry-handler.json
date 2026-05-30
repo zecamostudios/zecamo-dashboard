@@ -1,0 +1,285 @@
+{
+  "name": "Zecamo · Retry Handler",
+  "nodes": [
+    {
+      "id": "rh_01",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retry-handler",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "rh_02",
+      "name": "Get Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [320, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/publishing_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $json.job_id }}" },
+            { "name": "select", "value": "id,post_id,plataforma,estado,intentos,max_intentos,error_msg,account_id" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "rh_03",
+      "name": "Resolve Job",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const arr = Array.isArray($json) ? $json : [$json];\nconst job = arr[0];\nconst canRetry = job && job.estado === 'error' && (job.intentos || 0) < (job.max_intentos || 3);\nconst delaySeconds = Math.min(30 * Math.pow(2, (job?.intentos || 1) - 1), 300);\nreturn [{ json: { ...job, canRetry, delaySeconds, nextAttempt: (job?.intentos || 0) + 1 } }];"
+      }
+    },
+    {
+      "id": "rh_04",
+      "name": "Can Retry",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [760, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond_retry",
+              "leftValue": "={{ $json.canRetry }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equal" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "rh_05",
+      "name": "Backoff Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [980, 160],
+      "parameters": {
+        "resume": "timeInterval",
+        "unit": "seconds",
+        "amount": "={{ $('Resolve Job').first().json.delaySeconds }}"
+      }
+    },
+    {
+      "id": "rh_06",
+      "name": "Reset Job to Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1200, 160],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/publishing_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $('Webhook').first().json.job_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: 'pending', intentos: $('Resolve Job').first().json.nextAttempt, error_msg: null, updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "rh_07",
+      "name": "Dispatch Retry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1420, 160],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.N8N_BASE_URL || 'https://zecamon8n.zecamostudios.com') + '/webhook/publish-dispatcher' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ post_id: $('Resolve Job').first().json.post_id, platform: $('Resolve Job').first().json.plataforma, job_id: $('Webhook').first().json.job_id }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "rh_08",
+      "name": "Mark Job Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [980, 440],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/publishing_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $('Webhook').first().json.job_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: 'error', error_msg: 'Max retries exceeded (' + ($('Resolve Job').first().json.intentos || 0) + ' attempts)', updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "rh_09",
+      "name": "Mark Post Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1200, 440],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $('Resolve Job').first().json.post_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: 'fallido', updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "rh_10",
+      "name": "Log Max Retries Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1420, 440],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/workflow_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entidad_tipo: 'publishing_job', entidad_id: $('Webhook').first().json.job_id, evento: 'publish:max_retries_exceeded', estado_anterior: 'error', estado_nuevo: 'error', actor: 'n8n:retry-handler', metadata: { platform: $('Resolve Job').first().json.plataforma, intentos: $('Resolve Job').first().json.intentos, max_intentos: $('Resolve Job').first().json.max_intentos } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "rh_11",
+      "name": "Merge Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1640, 300],
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      }
+    },
+    {
+      "id": "rh_12",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1860, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, job_id: $('Webhook').first().json.job_id, canRetry: $('Resolve Job').first().json.canRetry, attempt: $('Resolve Job').first().json.nextAttempt }) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Get Job", "type": "main", "index": 0 }]]
+    },
+    "Get Job": {
+      "main": [[{ "node": "Resolve Job", "type": "main", "index": 0 }]]
+    },
+    "Resolve Job": {
+      "main": [[{ "node": "Can Retry", "type": "main", "index": 0 }]]
+    },
+    "Can Retry": {
+      "main": [
+        [{ "node": "Backoff Wait", "type": "main", "index": 0 }],
+        [{ "node": "Mark Job Failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Backoff Wait": {
+      "main": [[{ "node": "Reset Job to Pending", "type": "main", "index": 0 }]]
+    },
+    "Reset Job to Pending": {
+      "main": [[{ "node": "Dispatch Retry", "type": "main", "index": 0 }]]
+    },
+    "Dispatch Retry": {
+      "main": [[{ "node": "Merge Branches", "type": "main", "index": 0 }]]
+    },
+    "Mark Job Failed": {
+      "main": [[{ "node": "Mark Post Failed", "type": "main", "index": 0 }]]
+    },
+    "Mark Post Failed": {
+      "main": [[{ "node": "Log Max Retries Event", "type": "main", "index": 0 }]]
+    },
+    "Log Max Retries Event": {
+      "main": [[{ "node": "Merge Branches", "type": "main", "index": 1 }]]
+    },
+    "Merge Branches": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "zecamo-content-os" },
+  "tags": [{ "name": "content-os" }]
+}

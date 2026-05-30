@@ -1,0 +1,371 @@
+{
+  "name": "Zecamo · Publish Dispatcher",
+  "nodes": [
+    {
+      "id": "pd_01",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "publish-dispatcher",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_02",
+      "name": "Get Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [320, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $json.post_id }}" },
+            { "name": "select", "value": "id,titulo,contenido,plataforma,tipo,hook,cta,hashtags,media_urls,estado,external_id" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_03",
+      "name": "Get Platform Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [540, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/platform_accounts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "plataforma", "value": "={{ 'eq.' + $('Webhook').first().json.platform }}" },
+            { "name": "activo", "value": "eq.true" },
+            { "name": "select", "value": "id,plataforma,account_id,access_token,is_mock,nombre_cuenta" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_04",
+      "name": "Update Job Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [760, 300],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/publishing_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $('Webhook').first().json.job_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: 'processing', intentos: 1, updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_05",
+      "name": "Build Publish Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const webhook = $('Webhook').first().json;\nconst postArr = $('Get Post').first().json;\nconst acctArr = $('Get Platform Account').first().json;\nconst post = Array.isArray(postArr) ? postArr[0] : postArr;\nconst account = Array.isArray(acctArr) ? acctArr[0] : acctArr;\nconst platform = webhook.platform || post?.plataforma || 'linkedin';\nconst content = post?.contenido || post?.titulo || '';\n\nif (!account || account.is_mock) {\n  return [{ json: {\n    isMock: true,\n    success: true,\n    externalId: `mock_${platform}_${Date.now()}`,\n    publishUrl: `https://mock.${platform}.com/post/${Date.now()}`,\n    publishApiUrl: '',\n    authHeader: '',\n    linkedinProtocol: '',\n    publishBody: '{}',\n    platform\n  }}];\n}\n\nconst token = account.access_token || '';\nconst accountId = account.account_id || '';\nlet publishApiUrl, authHeader, linkedinProtocol, publishBody;\n\nswitch (platform) {\n  case 'linkedin':\n    publishApiUrl = 'https://api.linkedin.com/v2/ugcPosts';\n    authHeader = `Bearer ${token}`;\n    linkedinProtocol = '2.0.0';\n    publishBody = JSON.stringify({\n      author: `urn:li:organization:${accountId}`,\n      lifecycleState: 'PUBLISHED',\n      specificContent: {\n        'com.linkedin.ugc.ShareContent': {\n          shareCommentary: { attributes: [], text: content },\n          shareMediaCategory: 'NONE'\n        }\n      },\n      visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' }\n    });\n    break;\n  case 'twitter':\n    publishApiUrl = 'https://api.twitter.com/2/tweets';\n    authHeader = `Bearer ${token}`;\n    linkedinProtocol = '';\n    publishBody = JSON.stringify({ text: content.substring(0, 280) });\n    break;\n  case 'instagram':\n    publishApiUrl = `https://graph.facebook.com/v18.0/${accountId}/media`;\n    authHeader = '';\n    linkedinProtocol = '';\n    publishBody = JSON.stringify({ caption: content, media_type: 'FEED', access_token: token });\n    break;\n  default:\n    publishApiUrl = `https://graph.facebook.com/v18.0/${accountId}/feed`;\n    authHeader = '';\n    linkedinProtocol = '';\n    publishBody = JSON.stringify({ message: content, access_token: token });\n}\n\nreturn [{ json: { isMock: false, success: null, externalId: null, publishUrl: null, publishApiUrl, authHeader, linkedinProtocol, publishBody, platform } }];"
+      }
+    },
+    {
+      "id": "pd_06",
+      "name": "Is Mock Account",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond_mock",
+              "leftValue": "={{ $json.isMock }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equal" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "pd_07",
+      "name": "Set Mock Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1420, 160],
+      "parameters": {
+        "mode": "manual",
+        "fields": {
+          "values": [
+            { "name": "success", "type": "booleanValue", "booleanValue": true },
+            { "name": "externalId", "type": "stringValue", "stringValue": "={{ $json.externalId }}" },
+            { "name": "publishUrl", "type": "stringValue", "stringValue": "={{ $json.publishUrl }}" },
+            { "name": "isMock", "type": "booleanValue", "booleanValue": true },
+            { "name": "platform", "type": "stringValue", "stringValue": "={{ $json.platform }}" },
+            { "name": "errorMsg", "type": "stringValue", "stringValue": "" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_08",
+      "name": "Publish to Platform",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1420, 440],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.publishApiUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "={{ $json.authHeader }}" },
+            { "name": "X-Restli-Protocol-Version", "value": "={{ $json.linkedinProtocol }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.publishBody }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_09",
+      "name": "Merge Publish Result",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1640, 300],
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_10",
+      "name": "Parse Publish Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1860, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const input = $json;\nconst platform = $('Build Publish Request').first().json.platform;\nlet success, externalId, publishUrl, errorMsg;\n\nif (input.isMock === true) {\n  success = true;\n  externalId = input.externalId;\n  publishUrl = input.publishUrl;\n  errorMsg = null;\n} else if (input.error || (input.status && input.status >= 400)) {\n  success = false;\n  externalId = null;\n  publishUrl = null;\n  errorMsg = input.message || (input.error && input.error.message) || JSON.stringify(input).substring(0, 200);\n} else {\n  switch (platform) {\n    case 'linkedin':\n      externalId = input.id || null;\n      publishUrl = externalId ? `https://www.linkedin.com/feed/update/${externalId}` : null;\n      break;\n    case 'twitter':\n      externalId = (input.data && input.data.id) || input.id || null;\n      publishUrl = externalId ? `https://twitter.com/i/web/status/${externalId}` : null;\n      break;\n    default:\n      externalId = input.id || null;\n      publishUrl = null;\n  }\n  success = !!externalId;\n  errorMsg = success ? null : 'No external ID returned from platform API';\n}\n\nreturn [{ json: { success, externalId, publishUrl, errorMsg, platform, isMock: false } }];"
+      }
+    },
+    {
+      "id": "pd_11",
+      "name": "Update Job Final",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2080, 300],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/publishing_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $('Webhook').first().json.job_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ estado: $json.success ? 'success' : 'error', external_post_id: $json.externalId, error_msg: $json.errorMsg, procesado_en: new Date().toISOString(), updated_at: new Date().toISOString(), resultado: { url: $json.publishUrl, isMock: $json.isMock } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_12",
+      "name": "Update Post Published",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2300, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "={{ 'eq.' + $('Webhook').first().json.post_id }}" },
+            { "name": "estado", "value": "eq.programado" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Parse Publish Result').first().json.success ? JSON.stringify({ estado: 'publicado', publicado_en: new Date().toISOString(), external_id: $('Parse Publish Result').first().json.externalId, updated_at: new Date().toISOString() }) : JSON.stringify({ estado: 'fallido', updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_13",
+      "name": "Log Workflow Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2520, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/workflow_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entidad_tipo: 'publishing_job', entidad_id: $('Webhook').first().json.job_id, evento: $('Parse Publish Result').first().json.success ? 'publish:success' : 'publish:error', estado_anterior: 'processing', estado_nuevo: $('Parse Publish Result').first().json.success ? 'success' : 'error', actor: 'n8n:publish-dispatcher', metadata: { platform: $('Parse Publish Result').first().json.platform, externalId: $('Parse Publish Result').first().json.externalId, url: $('Parse Publish Result').first().json.publishUrl, isMock: $('Parse Publish Result').first().json.isMock, errorMsg: $('Parse Publish Result').first().json.errorMsg } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_14",
+      "name": "Notify Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2740, 300],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ZECAMO_DASHBOARD_URL || 'https://zecamo-dashboard.vercel.app' }}/api/automation/webhook",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ event: $('Parse Publish Result').first().json.success ? 'publish:complete' : 'publish:error', data: { job_id: $('Webhook').first().json.job_id, post_id: $('Webhook').first().json.post_id, external_id: $('Parse Publish Result').first().json.externalId, url: $('Parse Publish Result').first().json.publishUrl, error_msg: $('Parse Publish Result').first().json.errorMsg } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "pd_15",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2960, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, success: $('Parse Publish Result').first().json.success, job_id: $('Webhook').first().json.job_id, externalId: $('Parse Publish Result').first().json.externalId }) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Get Post", "type": "main", "index": 0 }]]
+    },
+    "Get Post": {
+      "main": [[{ "node": "Get Platform Account", "type": "main", "index": 0 }]]
+    },
+    "Get Platform Account": {
+      "main": [[{ "node": "Update Job Processing", "type": "main", "index": 0 }]]
+    },
+    "Update Job Processing": {
+      "main": [[{ "node": "Build Publish Request", "type": "main", "index": 0 }]]
+    },
+    "Build Publish Request": {
+      "main": [[{ "node": "Is Mock Account", "type": "main", "index": 0 }]]
+    },
+    "Is Mock Account": {
+      "main": [
+        [{ "node": "Set Mock Result", "type": "main", "index": 0 }],
+        [{ "node": "Publish to Platform", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Mock Result": {
+      "main": [[{ "node": "Merge Publish Result", "type": "main", "index": 0 }]]
+    },
+    "Publish to Platform": {
+      "main": [[{ "node": "Merge Publish Result", "type": "main", "index": 1 }]]
+    },
+    "Merge Publish Result": {
+      "main": [[{ "node": "Parse Publish Result", "type": "main", "index": 0 }]]
+    },
+    "Parse Publish Result": {
+      "main": [[{ "node": "Update Job Final", "type": "main", "index": 0 }]]
+    },
+    "Update Job Final": {
+      "main": [[{ "node": "Update Post Published", "type": "main", "index": 0 }]]
+    },
+    "Update Post Published": {
+      "main": [[{ "node": "Log Workflow Event", "type": "main", "index": 0 }]]
+    },
+    "Log Workflow Event": {
+      "main": [[{ "node": "Notify Dashboard", "type": "main", "index": 0 }]]
+    },
+    "Notify Dashboard": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "zecamo-content-os" },
+  "tags": [{ "name": "content-os" }]
+}

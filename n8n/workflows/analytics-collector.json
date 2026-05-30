@@ -1,0 +1,201 @@
+{
+  "name": "Zecamo · Analytics Collector",
+  "nodes": [
+    {
+      "id": "ac_01",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 24, "triggerAtHour": 6, "triggerAtMinute": 0 }]
+        }
+      }
+    },
+    {
+      "id": "ac_02",
+      "name": "Get Published Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [320, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "estado", "value": "eq.publicado" },
+            { "name": "select", "value": "id,plataforma,external_id,publicado_en,titulo" },
+            { "name": "limit", "value": "200" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ac_03",
+      "name": "Posts Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [540, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond_exist",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : 0 }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "ac_04",
+      "name": "No Published Posts",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [760, 160],
+      "parameters": {}
+    },
+    {
+      "id": "ac_05",
+      "name": "Split Posts for Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 440],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const posts = Array.isArray($json) ? $json : [$json];\nreturn posts.map(post => ({ json: post }));"
+      }
+    },
+    {
+      "id": "ac_06",
+      "name": "Get Platform Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [980, 440],
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/platform_accounts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "plataforma", "value": "={{ 'eq.' + $json.plataforma }}" },
+            { "name": "activo", "value": "eq.true" },
+            { "name": "select", "value": "id,plataforma,account_id,access_token,is_mock" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ac_07",
+      "name": "Fetch or Generate Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 440],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const accounts = Array.isArray($json) ? $json : [$json];\nconst account = accounts[0];\nconst postItems = $('Split Posts for Analytics').all();\nconst post = postItems[$itemIndex]?.json || postItems[0]?.json;\nconst platform = post?.plataforma;\nconst externalId = post?.external_id || `mock_${post?.id?.substring(0,8)}`;\nconst isMock = !account || account.is_mock;\n\nlet metrics;\n\nif (isMock || !account?.access_token) {\n  // Deterministic mock metrics seeded by post ID\n  const seed = parseInt((post?.id || '').replace(/-/g,'').substring(0,8), 16) || 12345;\n  const rng = (min, max, s) => min + Math.abs(Math.sin(s) * (max - min)) | 0;\n  const imp = rng(2000, 45000, seed);\n  const alcance = Math.floor(imp * (0.6 + Math.abs(Math.sin(seed * 2)) * 0.3));\n  const eng = Math.floor(alcance * (0.02 + Math.abs(Math.sin(seed * 3)) * 0.08));\n  const likes = Math.floor(eng * 0.6);\n  const comentarios = Math.floor(eng * 0.15);\n  const compartidos = Math.floor(eng * 0.1);\n  const guardados = Math.floor(eng * 0.1);\n  const clicks = Math.floor(alcance * (0.01 + Math.abs(Math.sin(seed * 4)) * 0.04));\n  const seguidores = Math.floor(eng * 0.05);\n  const engagement_rate = parseFloat((eng / Math.max(alcance, 1) * 100).toFixed(4));\n  metrics = { impresiones: imp, alcance, engagement: eng, likes, comentarios, compartidos, guardados, clicks, seguidores_ganados: seguidores, engagement_rate };\n} else {\n  // Real API metrics would be fetched here in Phase 4\n  // LinkedIn: GET https://api.linkedin.com/v2/organizationalEntityShareStatistics\n  // Twitter: GET https://api.twitter.com/2/tweets/{id}?tweet.fields=public_metrics\n  // Instagram/Facebook: GET https://graph.facebook.com/v18.0/{id}/insights\n  metrics = { impresiones: 0, alcance: 0, engagement: 0, likes: 0, comentarios: 0, compartidos: 0, guardados: 0, clicks: 0, seguidores_ganados: 0, engagement_rate: 0 };\n}\n\nreturn [{ json: {\n  post_id: post?.id,\n  plataforma: platform,\n  external_post_id: externalId,\n  fecha_snapshot: new Date().toISOString(),\n  ...metrics,\n  metadata: { isMock, source: isMock ? 'n8n-mock' : 'api', collectedAt: new Date().toISOString() }\n} }];"
+      }
+    },
+    {
+      "id": "ac_08",
+      "name": "Store Analytics Snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1420, 440],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/analytics_snapshots",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ post_id: $json.post_id, plataforma: $json.plataforma, external_post_id: $json.external_post_id, fecha_snapshot: $json.fecha_snapshot, impresiones: $json.impresiones, alcance: $json.alcance, engagement: $json.engagement, clicks: $json.clicks, likes: $json.likes, comentarios: $json.comentarios, compartidos: $json.compartidos, guardados: $json.guardados, seguidores_ganados: $json.seguidores_ganados, engagement_rate: $json.engagement_rate, metadata: $json.metadata }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "ac_09",
+      "name": "Log Analytics Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1640, 440],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/workflow_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entidad_tipo: 'analytics_snapshot', entidad_id: $('Fetch or Generate Metrics').first().json.post_id, evento: 'analytics:ingested', estado_nuevo: 'collected', actor: 'n8n:analytics-collector', metadata: { platform: $('Fetch or Generate Metrics').first().json.plataforma, engagement_rate: $('Fetch or Generate Metrics').first().json.engagement_rate, isMock: $('Fetch or Generate Metrics').first().json.metadata?.isMock } }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Daily Schedule": {
+      "main": [[{ "node": "Get Published Posts", "type": "main", "index": 0 }]]
+    },
+    "Get Published Posts": {
+      "main": [[{ "node": "Posts Exist", "type": "main", "index": 0 }]]
+    },
+    "Posts Exist": {
+      "main": [
+        [{ "node": "Split Posts for Analytics", "type": "main", "index": 0 }],
+        [{ "node": "No Published Posts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Posts for Analytics": {
+      "main": [[{ "node": "Get Platform Account", "type": "main", "index": 0 }]]
+    },
+    "Get Platform Account": {
+      "main": [[{ "node": "Fetch or Generate Metrics", "type": "main", "index": 0 }]]
+    },
+    "Fetch or Generate Metrics": {
+      "main": [[{ "node": "Store Analytics Snapshot", "type": "main", "index": 0 }]]
+    },
+    "Store Analytics Snapshot": {
+      "main": [[{ "node": "Log Analytics Event", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "zecamo-content-os" },
+  "tags": [{ "name": "content-os" }]
+}

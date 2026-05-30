@@ -1,0 +1,200 @@
+{
+  "name": "Zecamo · Scheduled Publisher",
+  "nodes": [
+    {
+      "id": "sp_01",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+        }
+      }
+    },
+    {
+      "id": "sp_02",
+      "name": "Get Scheduled Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [320, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/content_posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "estado", "value": "eq.programado" },
+            { "name": "programado_para", "value": "={{ 'lte.' + new Date().toISOString() }}" },
+            { "name": "select", "value": "id,titulo,plataforma,programado_para,estado" },
+            { "name": "limit", "value": "50" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "sp_03",
+      "name": "Posts Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [540, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond_posts",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : 0 }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "sp_04",
+      "name": "No Posts Scheduled",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [760, 160],
+      "parameters": {}
+    },
+    {
+      "id": "sp_05",
+      "name": "Split Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 440],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const posts = Array.isArray($json) ? $json : [$json];\nreturn posts.map(post => ({ json: post }));"
+      }
+    },
+    {
+      "id": "sp_06",
+      "name": "Get Account for Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [980, 440],
+      "parameters": {
+        "method": "GET",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/platform_accounts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "plataforma", "value": "={{ 'eq.' + $json.plataforma }}" },
+            { "name": "activo", "value": "eq.true" },
+            { "name": "select", "value": "id,plataforma,is_mock" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "sp_07",
+      "name": "Build Job Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 440],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const accounts = Array.isArray($json) ? $json : [$json];\nconst account = accounts[0];\nconst postItems = $('Split Posts').all();\n\n// Find the post for this execution item\nconst currentPostIdx = $itemIndex;\nconst post = postItems[currentPostIdx]?.json || postItems[0]?.json;\n\nreturn [{ json: {\n  post_id: post?.id,\n  plataforma: post?.plataforma,\n  programado_para: post?.programado_para,\n  account_id: account?.id || null\n} }];"
+      }
+    },
+    {
+      "id": "sp_08",
+      "name": "Create Publishing Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1420, 440],
+      "parameters": {
+        "method": "POST",
+        "url": "https://wlvogtjpldglpiufnryy.supabase.co/rest/v1/publishing_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ post_id: $json.post_id, plataforma: $json.plataforma, account_id: $json.account_id, estado: 'pending', programado_para: $json.programado_para, intentos: 0, max_intentos: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "sp_09",
+      "name": "Trigger Dispatcher",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1640, 440],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.N8N_BASE_URL || 'https://zecamon8n.zecamostudios.com') + '/webhook/publish-dispatcher' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ post_id: $('Build Job Data').first().json.post_id, platform: $('Build Job Data').first().json.plataforma, job_id: (Array.isArray($('Create Publishing Job').first().json) ? $('Create Publishing Job').first().json[0] : $('Create Publishing Job').first().json).id }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Get Scheduled Posts", "type": "main", "index": 0 }]]
+    },
+    "Get Scheduled Posts": {
+      "main": [[{ "node": "Posts Found", "type": "main", "index": 0 }]]
+    },
+    "Posts Found": {
+      "main": [
+        [{ "node": "Split Posts", "type": "main", "index": 0 }],
+        [{ "node": "No Posts Scheduled", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Posts": {
+      "main": [[{ "node": "Get Account for Post", "type": "main", "index": 0 }]]
+    },
+    "Get Account for Post": {
+      "main": [[{ "node": "Build Job Data", "type": "main", "index": 0 }]]
+    },
+    "Build Job Data": {
+      "main": [[{ "node": "Create Publishing Job", "type": "main", "index": 0 }]]
+    },
+    "Create Publishing Job": {
+      "main": [[{ "node": "Trigger Dispatcher", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "zecamo-content-os" },
+  "tags": [{ "name": "content-os" }]
+}
