@@ -23,6 +23,7 @@ import {
   Workflow,
   Brain,
   Cpu,
+  Activity,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -95,8 +96,9 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
     {
       label: "Recursos",
       items: [
-        { href: "/manual", label: "Manual", icon: BookOpen },
-        { href: "/configuracion", label: "Configuración", icon: Settings },
+        { href: "/health",         label: "System Health",  icon: Activity },
+        { href: "/manual",         label: "Manual",         icon: BookOpen },
+        { href: "/configuracion",  label: "Configuración",  icon: Settings },
       ],
     },
   ];
