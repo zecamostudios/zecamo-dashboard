@@ -203,6 +203,27 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
     }
   }
 
+  async function publishNow(post: ContentPost) {
+    const platform = post.plataforma;
+    try {
+      const res = await fetch("/api/content/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ post_id: post.id, platform }),
+      });
+      const data = await res.json() as { success?: boolean; errorMsg?: string; error?: string };
+      if (!res.ok || !data.success) {
+        toast.error(data.errorMsg ?? data.error ?? "Error al publicar");
+        return;
+      }
+      toast.success(`Publicado en ${platform === "linkedin" ? "LinkedIn" : "Facebook"}`);
+      setPosts((prev) => prev.map((p) => p.id === post.id ? { ...p, estado: "publicado" } : p));
+      if (detailPost?.id === post.id) setDetailPost((d) => d ? { ...d, estado: "publicado" } : d);
+    } catch {
+      toast.error("Error al publicar");
+    }
+  }
+
   async function generateAndPublishCarousel(post: ContentPost, publishAfter = false) {
     setCarouselLoading(post.id);
     try {
@@ -429,6 +450,16 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                         </button>
                       )}
 
+                      {post.estado === "aprobado" && (post.plataforma === "linkedin" || post.plataforma === "facebook") && (
+                        <button
+                          onClick={() => publishNow(post)}
+                          className="h-8 px-3 rounded-lg border border-[rgba(34,197,139,0.3)] bg-[rgba(34,197,139,0.08)] text-[11.5px] font-medium text-[var(--color-success)] cursor-pointer hover:bg-[rgba(34,197,139,0.14)] transition flex items-center gap-1.5"
+                          title={`Publicar en ${post.plataforma}`}
+                        >
+                          <Globe size={12} /> Publicar
+                        </button>
+                      )}
+
                       {post.estado === "aprobado" && (
                         <button
                           onClick={() => setSchedulePostId(post.id)}
@@ -504,6 +535,14 @@ export function QueueView({ initialPosts = [] }: QueueViewProps) {
                           ? <><Loader2 size={12} className="animate-spin" /> Gen...</>
                           : <><LayoutTemplate size={12} /> Carrusel</>
                         }
+                      </button>
+                    )}
+                    {post.estado === "aprobado" && (post.plataforma === "linkedin" || post.plataforma === "facebook") && (
+                      <button
+                        onClick={() => publishNow(post)}
+                        className="h-8 px-3 rounded-lg border border-[rgba(34,197,139,0.3)] bg-[rgba(34,197,139,0.08)] text-[11.5px] font-medium text-[var(--color-success)] flex items-center gap-1.5"
+                      >
+                        <Globe size={12} /> Publicar
                       </button>
                     )}
                     {post.estado === "aprobado" && (
