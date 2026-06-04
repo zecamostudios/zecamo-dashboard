@@ -20,14 +20,6 @@ export const dynamic = "force-dynamic";
 const DIAS_ANTES = 10;
 
 export async function GET(request: NextRequest) {
-  // Diagnóstico temporal de env (no filtra valores).
-  if (request.nextUrl.searchParams.get("debug") === "1") {
-    return NextResponse.json({
-      hasCronSecret: !!process.env.CRON_SECRET,
-      hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    });
-  }
-
   // Auth: solo Vercel Cron (o quien tenga el secret).
   const secret = process.env.CRON_SECRET;
   if (secret) {
