@@ -14,6 +14,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *
  * Lo dispara Vercel Cron (ver vercel.json). Protegido con CRON_SECRET:
  * Vercel manda `Authorization: Bearer ${CRON_SECRET}` en cada ejecución.
+ * Nota: CRON_SECRET debe cargarse desde el dashboard de Vercel (las env vars
+ * creadas por la API REST no se inyectan al runtime en este proyecto).
  */
 export const dynamic = "force-dynamic";
 
