@@ -22,10 +22,20 @@ export const dynamic = "force-dynamic";
 const DIAS_ANTES = 10;
 
 export async function GET(request: NextRequest) {
-  // Auth: solo Vercel Cron. Si CRON_SECRET está definido, Vercel manda
-  // `Authorization: Bearer ${CRON_SECRET}` en cada ejecución y acá lo validamos.
-  // (Cargá CRON_SECRET desde el dashboard de Vercel para activar la protección.)
-  const secret = process.env.CRON_SECRET;
+  // Vercel Cron manda `Authorization: Bearer ${CRON_SECRET}`, pero CRON_SECRET
+  // es un nombre reservado y no se expone a process.env. Por eso comparamos el
+  // Bearer contra IG_REFRESH_SECRET (mismo valor que CRON_SECRET, nombre no
+  // reservado → sí legible). Ambas se cargan desde el dashboard de Vercel.
+  const secret = process.env.IG_REFRESH_SECRET;
+
+  if (request.nextUrl.searchParams.get("debug") === "1") {
+    return NextResponse.json({
+      hasIgRefresh: !!process.env.IG_REFRESH_SECRET,
+      hasCron: !!process.env.CRON_SECRET,
+      hasSupa: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+  }
+
   if (secret) {
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${secret}`) {
