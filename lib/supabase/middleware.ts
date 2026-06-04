@@ -31,8 +31,13 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isAuthPath = request.nextUrl.pathname.startsWith("/login");
+  // El callback de Instagram debe ser accesible sin sesión: Instagram redirige
+  // acá desde su propio dominio. Va protegido por el nonce anti-CSRF en cookie.
+  const isOAuthCallback = request.nextUrl.pathname.startsWith(
+    "/api/auth/instagram/callback"
+  );
 
-  if (!user && !isAuthPath) {
+  if (!user && !isAuthPath && !isOAuthCallback) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
