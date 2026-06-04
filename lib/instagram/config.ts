@@ -28,6 +28,7 @@ export const INSTAGRAM_OAUTH = {
   authorize: "https://www.instagram.com/oauth/authorize",
   shortLivedToken: "https://api.instagram.com/oauth/access_token",
   longLivedToken: "https://graph.instagram.com/access_token",
+  refreshToken: "https://graph.instagram.com/refresh_access_token",
 } as const;
 
 /**

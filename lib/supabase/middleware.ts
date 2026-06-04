@@ -36,8 +36,10 @@ export async function updateSession(request: NextRequest) {
   const isOAuthCallback = request.nextUrl.pathname.startsWith(
     "/api/auth/instagram/callback"
   );
+  // Los cron jobs (Vercel Cron) no tienen sesión; van protegidos por CRON_SECRET.
+  const isCron = request.nextUrl.pathname.startsWith("/api/cron");
 
-  if (!user && !isAuthPath && !isOAuthCallback) {
+  if (!user && !isAuthPath && !isOAuthCallback && !isCron) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
