@@ -20,8 +20,17 @@ export const dynamic = "force-dynamic";
 const DIAS_ANTES = 10;
 
 export async function GET(request: NextRequest) {
+  // `CRON_SECRET` es un nombre reservado de Vercel: lo usa para inyectar el
+  // header `Authorization: Bearer ${CRON_SECRET}` en cada ejecución del cron,
+  // pero no se expone a process.env por API igual que el resto. Por eso leemos
+  // IG_CRON_SECRET (mismo valor) para comparar el Bearer entrante.
+  const secret = process.env.IG_CRON_SECRET || process.env.CRON_SECRET;
+
+  if (request.nextUrl.searchParams.get("debug") === "1") {
+    return NextResponse.json({ hasSecret: !!secret });
+  }
+
   // Auth: solo Vercel Cron (o quien tenga el secret).
-  const secret = process.env.CRON_SECRET;
   if (secret) {
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${secret}`) {
