@@ -27,7 +27,10 @@ export async function GET(request: NextRequest) {
   const secret = process.env.IG_CRON_SECRET || process.env.CRON_SECRET;
 
   if (request.nextUrl.searchParams.get("debug") === "1") {
-    return NextResponse.json({ hasSecret: !!secret });
+    return NextResponse.json({
+      hasSecret: !!secret,
+      via: process.env.IG_CRON_SECRET ? "IG_CRON_SECRET" : process.env.CRON_SECRET ? "CRON_SECRET" : "none",
+    });
   }
 
   // Auth: solo Vercel Cron (o quien tenga el secret).
