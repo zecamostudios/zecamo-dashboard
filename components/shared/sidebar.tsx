@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   BookOpen,
+  Share2,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ const navItems = [
   { href: "/tareas", label: "Tareas", icon: CheckSquare },
   { href: "/analytics", label: "Analíticas", icon: BarChart3 },
   { href: "/manual", label: "Manual", icon: BookOpen },
+  { href: "/configuracion/redes-sociales", label: "Redes Sociales", icon: Share2 },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
