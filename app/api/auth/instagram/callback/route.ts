@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   const fail = (reason: string) =>
     NextResponse.redirect(
-      `${origin}/configuracion?ig=error&reason=${encodeURIComponent(reason)}`
+      `${origin}/configuracion/redes-sociales?ig=error&reason=${encodeURIComponent(reason)}`
     );
 
   // Meta devolvió un error (usuario canceló, app sin permisos, etc.)
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
 
     // 5. Listo. Limpiamos la cookie y redirigimos.
     const ok = NextResponse.redirect(
-      `${origin}/configuracion?ig=connected&user=${encodeURIComponent(igUserId)}`
+      `${origin}/configuracion/redes-sociales?ig=connected&user=${encodeURIComponent(igUserId)}`
     );
     ok.cookies.delete("ig_oauth_nonce");
     return ok;
