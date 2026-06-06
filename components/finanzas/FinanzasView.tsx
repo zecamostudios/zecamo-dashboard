@@ -27,7 +27,7 @@ import { AreaChart } from "@/components/charts/AreaChart";
 import { MrrCard } from "./MrrCard";
 import { TransactionRow } from "./TransactionRow";
 import { LineDistribution } from "./LineDistribution";
-import type { Client, Transaction, FinancePoint, ByLine } from "@/lib/types";
+import type { Client, Transaction, FinancePoint, ByLine, ServiceLine } from "@/lib/types";
 
 type Currency = "USD" | "ARS";
 type Range = "Mes" | "3M" | "6M" | "YTD";
@@ -50,6 +50,14 @@ function exportCSV(transactions: Transaction[], fmt: (n: number) => string) {
 const MODAL_INPUT = "w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition";
 
 const RATE = 1180;
+
+// Etiquetas completas y claras para el selector de línea (el value sigue siendo el código corto que espera la DB)
+const LINE_LABELS: { id: ServiceLine; label: string }[] = [
+  { id: "AIMA", label: "Automatización con IA" },
+  { id: "B2B", label: "Outbound y ventas B2B" },
+  { id: "Webs", label: "Diseño y desarrollo web" },
+  { id: "Diagnóstico", label: "Diagnóstico (Express / Premium)" },
+];
 
 interface FinanzasViewProps {
   initialClients?: Client[];
@@ -307,7 +315,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
                 <div>
                   <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Línea</label>
                   <select value={txForm.line} onChange={(e) => setTxForm((f) => ({ ...f, line: e.target.value }))} className={MODAL_INPUT}>
-                    {["Webs", "AIMA", "AISA", "Branding", "AdsM"].map((l) => <option key={l}>{l}</option>)}
+                    {LINE_LABELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>
