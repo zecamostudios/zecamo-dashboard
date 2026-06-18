@@ -34,6 +34,8 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
+  const [rubro, setRubro] = useState("");
+  const [ciudad, setCiudad] = useState("San Miguel de Tucumán");
 
   // Resincronizar con el server cuando llegan leads nuevos (router.refresh tras "Buscar").
   useEffect(() => {
@@ -42,13 +44,17 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
   }, [initialLeads]);
 
   // Dispara el workflow WF-Outbound-SDR y refresca la cola cuando termina de scrapear.
+  // Sin rubro → usa las queries por defecto del workflow (gyms Tucumán).
   async function buscarProspectos() {
     setBuscando(true);
+    const r = rubro.trim();
+    const c = ciudad.trim();
+    const body = r ? { nicho: r, ciudad: c || "San Miguel de Tucumán", categoria: r } : {};
     try {
       const res = await fetch("/api/outbound/buscar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{}", // {} = queries por defecto del workflow (gyms Tucumán)
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({ error: "" }));
@@ -56,9 +62,11 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
         setBuscando(false);
         return;
       }
-      toast.success("Buscando gimnasios… los nuevos van a aparecer en unos segundos");
+      toast.success(
+        `Buscando ${r || "gimnasios"}… los nuevos van a aparecer en unos segundos`,
+      );
       // El workflow corre async; le damos tiempo a scrapear + puntuar y refrescamos.
-      await new Promise((r) => setTimeout(r, 12000));
+      await new Promise((res) => setTimeout(res, 14000));
       router.refresh();
     } catch {
       toast.error("No se pudo contactar el servidor");
@@ -148,14 +156,37 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
         title="Cola de prospectos"
         subtitle="Gimnasios scrapeados y puntuados por IA · aprobá y mandá a mano (cero blast automático)"
         actions={
-          <button
-            onClick={buscarProspectos}
-            disabled={buscando}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-60 disabled:cursor-default"
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!buscando) buscarProspectos();
+            }}
+            className="flex items-center gap-2 flex-wrap"
           >
-            {buscando ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-            {buscando ? "Buscando…" : "Buscar prospectos"}
-          </button>
+            <input
+              value={rubro}
+              onChange={(e) => setRubro(e.target.value)}
+              placeholder="Rubro (ej: peluquerías)"
+              disabled={buscando}
+              className="rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition w-[170px] disabled:opacity-60"
+            />
+            <input
+              value={ciudad}
+              onChange={(e) => setCiudad(e.target.value)}
+              placeholder="Ciudad"
+              disabled={buscando}
+              className="rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition w-[160px] disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={buscando}
+              title="Sin rubro busca gimnasios de Tucumán por defecto"
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition disabled:opacity-60 disabled:cursor-default whitespace-nowrap"
+            >
+              {buscando ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+              {buscando ? "Buscando…" : "Buscar prospectos"}
+            </button>
+          </form>
         }
       />
 
