@@ -96,6 +96,76 @@ export interface Database {
         };
         Relationships: [];
       };
+      leads: {
+        Row: {
+          id: string;
+          created_at: string;
+          nombre: string;
+          categoria: string | null;
+          zona: string | null;
+          google_place_id: string | null;
+          telefono: string | null;
+          whatsapp: string | null;
+          instagram: string | null;
+          web: string | null;
+          rating: number | null;
+          num_reviews: number | null;
+          tiene_web: boolean;
+          score: number | null;
+          gancho: string | null;
+          opener: string | null;
+          canal_sugerido: string | null;
+          estado: string;
+          aprobado_por: string | null;
+          fecha_contacto: string | null;
+          notas: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          nombre: string;
+          categoria?: string | null;
+          zona?: string | null;
+          google_place_id?: string | null;
+          telefono?: string | null;
+          whatsapp?: string | null;
+          instagram?: string | null;
+          web?: string | null;
+          rating?: number | null;
+          num_reviews?: number | null;
+          tiene_web?: boolean;
+          score?: number | null;
+          gancho?: string | null;
+          opener?: string | null;
+          canal_sugerido?: string | null;
+          estado?: string;
+          aprobado_por?: string | null;
+          fecha_contacto?: string | null;
+          notas?: string | null;
+        };
+        Update: {
+          nombre?: string;
+          categoria?: string | null;
+          zona?: string | null;
+          google_place_id?: string | null;
+          telefono?: string | null;
+          whatsapp?: string | null;
+          instagram?: string | null;
+          web?: string | null;
+          rating?: number | null;
+          num_reviews?: number | null;
+          tiene_web?: boolean;
+          score?: number | null;
+          gancho?: string | null;
+          opener?: string | null;
+          canal_sugerido?: string | null;
+          estado?: string;
+          aprobado_por?: string | null;
+          fecha_contacto?: string | null;
+          notas?: string | null;
+        };
+        Relationships: [];
+      };
       interacciones_prospecto: {
         Row: {
           id: string;
@@ -1110,6 +1180,7 @@ export interface Database {
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Prospecto = Database["public"]["Tables"]["prospectos"]["Row"];
+export type Lead = Database["public"]["Tables"]["leads"]["Row"];
 export type InteraccionProspecto = Database["public"]["Tables"]["interacciones_prospecto"]["Row"];
 export type Cliente = Database["public"]["Tables"]["clientes"]["Row"];
 export type Proyecto = Database["public"]["Tables"]["proyectos"]["Row"];
