@@ -119,6 +119,14 @@ export interface Database {
           aprobado_por: string | null;
           fecha_contacto: string | null;
           notas: string | null;
+          email: string | null;
+          research: Record<string, unknown> | null;
+          email_asunto: string | null;
+          email_cuerpo: string | null;
+          mensaje_corto: string | null;
+          research_at: string | null;
+          email_enviado_at: string | null;
+          research_error: string | null;
         };
         Insert: {
           id?: string;
@@ -142,6 +150,14 @@ export interface Database {
           aprobado_por?: string | null;
           fecha_contacto?: string | null;
           notas?: string | null;
+          email?: string | null;
+          research?: Record<string, unknown> | null;
+          email_asunto?: string | null;
+          email_cuerpo?: string | null;
+          mensaje_corto?: string | null;
+          research_at?: string | null;
+          email_enviado_at?: string | null;
+          research_error?: string | null;
         };
         Update: {
           nombre?: string;
@@ -163,6 +179,14 @@ export interface Database {
           aprobado_por?: string | null;
           fecha_contacto?: string | null;
           notas?: string | null;
+          email?: string | null;
+          research?: Record<string, unknown> | null;
+          email_asunto?: string | null;
+          email_cuerpo?: string | null;
+          mensaje_corto?: string | null;
+          research_at?: string | null;
+          email_enviado_at?: string | null;
+          research_error?: string | null;
         };
         Relationships: [];
       };

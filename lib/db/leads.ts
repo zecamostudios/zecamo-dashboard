@@ -2,15 +2,19 @@ import { createClient } from "@/lib/supabase/server";
 import type { Lead } from "@/types/database";
 
 const LEAD_COLS =
-  "id, created_at, nombre, categoria, zona, google_place_id, telefono, whatsapp, instagram, web, rating, num_reviews, tiene_web, score, gancho, opener, canal_sugerido, estado, aprobado_por, fecha_contacto, notas";
+  "id, created_at, nombre, categoria, zona, google_place_id, telefono, whatsapp, instagram, web, rating, num_reviews, tiene_web, score, gancho, opener, canal_sugerido, estado, aprobado_por, fecha_contacto, notas, email, research, email_asunto, email_cuerpo, mensaje_corto, research_at, email_enviado_at";
 
-/** Cola de aprobación: leads pendientes, los de más dolor (score alto) primero. */
+/**
+ * Cola de trabajo: leads sin investigar (prospecto_pendiente) + ya investigados
+ * con borrador (investigado), los de más dolor (score alto) primero. Salen de la
+ * cola al pasar a contactado/descartado.
+ */
 export async function getPendingLeads(): Promise<Lead[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("leads")
     .select(LEAD_COLS)
-    .eq("estado", "prospecto_pendiente")
+    .in("estado", ["prospecto_pendiente", "investigado"])
     .order("score", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
 

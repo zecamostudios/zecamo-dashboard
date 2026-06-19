@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Star, MapPin, MessageCircle, AtSign, X, Globe, Inbox, Search, Loader2 } from "lucide-react";
+import { Star, MapPin, MessageCircle, AtSign, X, Globe, Inbox, Search, Loader2, Sparkles, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead } from "@/types/database";
@@ -34,14 +34,52 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
+  const [investigando, setInvestigando] = useState(false);
   const [rubro, setRubro] = useState("");
   const [ciudad, setCiudad] = useState("San Miguel de Tucumán");
 
-  // Resincronizar con el server cuando llegan leads nuevos (router.refresh tras "Buscar").
+  // Resincronizar con el server cuando llegan leads nuevos (router.refresh).
+  // Para el opener editable se prefiere el mensaje_corto del agente si existe.
   useEffect(() => {
     setLeads(initialLeads);
-    setOpeners(Object.fromEntries(initialLeads.map((l) => [l.id, l.opener ?? ""])));
+    setOpeners(Object.fromEntries(initialLeads.map((l) => [l.id, l.mensaje_corto ?? l.opener ?? ""])));
   }, [initialLeads]);
+
+  // Dispara el agente WF-SDR-Agent para los pendientes sin investigar (top N por score).
+  async function investigarTopN(n = 20) {
+    const pendientes = leads.filter((l) => l.estado === "prospecto_pendiente").slice(0, n);
+    if (pendientes.length === 0) {
+      toast.error("No hay leads sin investigar en la cola");
+      return;
+    }
+    setInvestigando(true);
+    const payload = pendientes.map((l) => ({
+      id: l.id, nombre: l.nombre, categoria: l.categoria, zona: l.zona, web: l.web,
+      google_place_id: l.google_place_id, whatsapp: l.whatsapp, instagram: l.instagram,
+      rating: l.rating, num_reviews: l.num_reviews, tiene_web: l.tiene_web,
+      opener: l.opener, canal_sugerido: l.canal_sugerido,
+    }));
+    try {
+      const res = await fetch("/api/outbound/investigar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leads: payload }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        toast.error(error || "No se pudo iniciar la investigación");
+        setInvestigando(false);
+        return;
+      }
+      toast.success(`Investigando ${pendientes.length} leads… las propuestas aparecen en ~1 min`);
+      await new Promise((r) => setTimeout(r, 30000));
+      router.refresh();
+    } catch {
+      toast.error("No se pudo contactar el servidor");
+    } finally {
+      setInvestigando(false);
+    }
+  }
 
   // Dispara el workflow WF-Outbound-SDR y refresca la cola cuando termina de scrapear.
   // Sin rubro → usa las queries por defecto del workflow (gyms Tucumán).
@@ -154,8 +192,9 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
     <>
       <PageHead
         title="Cola de prospectos"
-        subtitle="Gimnasios scrapeados y puntuados por IA · aprobá y mandá a mano (cero blast automático)"
+        subtitle="Negocios scrapeados de Google Maps + investigados por IA · aprobá y mandá a mano (cero blast automático)"
         actions={
+          <div className="flex items-center gap-2 flex-wrap">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -187,6 +226,16 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
               {buscando ? "Buscando…" : "Buscar prospectos"}
             </button>
           </form>
+          <button
+            onClick={() => investigarTopN(20)}
+            disabled={investigando}
+            title="Investiga los pendientes (top 20 por score) y arma email + propuesta"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-medium bg-white/[0.06] text-[var(--color-text)] border border-[var(--color-border)] cursor-pointer hover:bg-white/[0.1] transition disabled:opacity-60 disabled:cursor-default whitespace-nowrap"
+          >
+            {investigando ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+            {investigando ? "Investigando…" : "Investigar top 20"}
+          </button>
+          </div>
         }
       />
 
@@ -264,7 +313,7 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
                 </div>
 
                 {/* Gancho */}
-                {lead.gancho && (
+                {lead.gancho && !lead.research_at && (
                   <div className="rounded-xl bg-white/[0.03] border border-[var(--color-border)] px-3 py-2.5">
                     <div className="text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1">
                       Gancho detectado
@@ -272,6 +321,58 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
                     <div className="text-[13px] text-[var(--color-text)] leading-snug">{lead.gancho}</div>
                   </div>
                 )}
+
+                {/* Ficha de research del agente */}
+                {lead.research_at && (() => {
+                  const r = (lead.research ?? {}) as {
+                    resumen?: string;
+                    servicios_sugeridos?: string[];
+                  };
+                  return (
+                    <div className="rounded-xl bg-white/[0.03] border border-[var(--color-border)] px-3 py-2.5 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+                          Research IA
+                        </span>
+                        {lead.email_enviado_at ? (
+                          <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-[rgba(34,197,139,0.1)] text-[var(--color-success)]">
+                            email enviado
+                          </span>
+                        ) : (
+                          <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-[rgba(43,91,255,0.1)] text-[var(--color-primary-hover)]">
+                            investigado
+                          </span>
+                        )}
+                      </div>
+                      {r.resumen && (
+                        <p className="text-[12.5px] text-[var(--color-text)] leading-snug m-0">{r.resumen}</p>
+                      )}
+                      {Array.isArray(r.servicios_sugeridos) && r.servicios_sugeridos.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {r.servicios_sugeridos.map((s, i) => (
+                            <span
+                              key={i}
+                              className="text-[10.5px] px-2 py-0.5 rounded-full bg-white/[0.05] border border-[var(--color-border)] text-[var(--color-text-muted)]"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {lead.email_asunto && (
+                        <details className="mt-1">
+                          <summary className="text-[11.5px] text-[var(--color-primary-hover)] cursor-pointer inline-flex items-center gap-1">
+                            <Mail size={12} /> Ver email{lead.email ? ` → ${lead.email}` : " (sin email — mandalo por WSP/IG)"}
+                          </summary>
+                          <div className="mt-1.5 text-[12px] leading-snug">
+                            <div className="font-medium text-[var(--color-text)]">{lead.email_asunto}</div>
+                            <div className="mt-1 text-[var(--color-text-muted)] whitespace-pre-wrap">{lead.email_cuerpo}</div>
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Opener editable */}
                 <div>
