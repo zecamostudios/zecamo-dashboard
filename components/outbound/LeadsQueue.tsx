@@ -146,6 +146,37 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
       return;
     }
 
+    // Promover al CRM: crea el prospecto (etapa "lead") con el opener y los
+    // datos del lead en notas, así aparece en el Kanban. Falla suave: si el
+    // insert al CRM rompe, el lead igual quedó contactado y se abrió el canal.
+    const meta: string[] = [];
+    if (lead.rating != null) meta.push(`Rating ${lead.rating} (${lead.num_reviews ?? 0} reseñas)`);
+    if (lead.score != null) meta.push(`score ${lead.score}`);
+    meta.push(lead.tiene_web ? "con web" : "sin web (creció a pulmón)");
+    if (lead.whatsapp) meta.push(`WA ${lead.whatsapp}`);
+    if (lead.instagram) meta.push(`IG ${lead.instagram}`);
+    const notas = [
+      `Mensaje enviado:\n${opener}`,
+      lead.gancho ? `Gancho: ${lead.gancho}` : null,
+      meta.length ? meta.join(" · ") : null,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const { error: crmError } = await supabase.from("prospectos").insert({
+      negocio: lead.nombre,
+      telefono: lead.whatsapp ?? lead.telefono ?? null,
+      email: lead.email ?? null,
+      fuente: "Prospección IA",
+      fecha_contacto: new Date().toISOString().slice(0, 10),
+      etapa: "lead",
+      linea_servicio: "Webs",
+      notas,
+    });
+    if (crmError) {
+      toast.error("Contactado, pero no entró al CRM: " + crmError.message);
+    }
+
     // Abrir el canal con el texto pre-cargado — NUNCA se manda solo.
     const esWhatsapp = lead.canal_sugerido === "whatsapp" && lead.whatsapp;
     if (esWhatsapp) {
@@ -154,7 +185,7 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
         "_blank",
         "noopener,noreferrer",
       );
-      toast.success(`WhatsApp abierto · ${lead.nombre}`);
+      toast.success(`${lead.nombre} → CRM · WhatsApp abierto`);
     } else {
       const handle = igHandle(lead.instagram);
       try {
@@ -164,9 +195,9 @@ export function LeadsQueue({ initialLeads, counts }: LeadsQueueProps) {
       }
       if (handle) {
         window.open(`https://instagram.com/${handle}`, "_blank", "noopener,noreferrer");
-        toast.success("Opener copiado · IG abierto (pegalo en el DM)");
+        toast.success(`${lead.nombre} → CRM · IG abierto (opener copiado, pegalo en el DM)`);
       } else {
-        toast.success("Opener copiado al portapapeles");
+        toast.success(`${lead.nombre} → CRM · opener copiado al portapapeles`);
       }
     }
 
