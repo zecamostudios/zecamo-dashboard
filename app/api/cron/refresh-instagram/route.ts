@@ -28,14 +28,6 @@ export async function GET(request: NextRequest) {
   // reservado → sí legible). Ambas se cargan desde el dashboard de Vercel.
   const secret = process.env.IG_REFRESH_SECRET;
 
-  if (request.nextUrl.searchParams.get("debug") === "1") {
-    return NextResponse.json({
-      hasIgRefresh: !!process.env.IG_REFRESH_SECRET,
-      hasCron: !!process.env.CRON_SECRET,
-      hasSupa: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    });
-  }
-
   if (secret) {
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${secret}`) {
