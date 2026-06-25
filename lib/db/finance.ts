@@ -14,14 +14,22 @@ function rowToTransaction(row: Record<string, unknown>): Transaction {
   const monthLabel = MONTH_LABELS[monthKey] ?? monthKey;
   const d = `${dd} ${monthLabel}`;
 
+  const moneda = row.moneda === "ARS" ? "ARS" : "USD";
+  const claseRaw = String(row.clase_egreso ?? "");
+
   return {
     dbId: String(row.id ?? ""),
     d,
+    fecha,
     c: String(row.concepto ?? row.descripcion ?? ""),
     line: (String(row.linea_servicio ?? "Ops")) as ServiceLine | "Ops",
     a: Number(row.monto_usd ?? 0),
     type: row.tipo === "egreso" ? "out" : "in",
     owner: (String(row.owner_initials ?? "JS")) as OwnerId,
+    moneda,
+    montoOriginal: row.monto_original != null ? Number(row.monto_original) : Number(row.monto_usd ?? 0),
+    cotizacion: row.cotizacion != null ? Number(row.cotizacion) : undefined,
+    claseEgreso: claseRaw === "fijo" || claseRaw === "variable" ? claseRaw : undefined,
   };
 }
 
@@ -29,7 +37,7 @@ export async function getTransactions(limit = 20): Promise<Transaction[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transacciones")
-    .select("id, fecha, tipo, concepto, descripcion, monto_usd, linea_servicio, owner_initials")
+    .select("id, fecha, tipo, concepto, descripcion, monto_usd, monto_original, moneda, cotizacion, clase_egreso, linea_servicio, owner_initials")
     .order("fecha", { ascending: false })
     .limit(limit);
 

@@ -112,14 +112,22 @@ export interface FinancePoint {
 
 export type TransactionType = "in" | "out";
 
+export type Moneda = "USD" | "ARS";
+export type ClaseEgreso = "fijo" | "variable";
+
 export interface Transaction {
   dbId?: string;
   d: string;
   c: string;
   line: ServiceLine | "Ops";
-  a: number;
+  a: number; // monto canónico en USD (para KPIs y agregaciones)
   type: TransactionType;
   owner: OwnerId;
+  fecha?: string; // YYYY-MM-DD crudo, para precargar la edición
+  moneda?: Moneda; // moneda en la que se cargó
+  montoOriginal?: number; // monto tal como se ingresó (en `moneda`)
+  cotizacion?: number; // ARS por USD usada al convertir (solo si moneda === "ARS")
+  claseEgreso?: ClaseEgreso; // fijo o variable (solo egresos)
 }
 
 export type OutboundStatus = "enviado" | "respondio" | "agendado" | "no_resp";

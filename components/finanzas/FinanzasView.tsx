@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Target,
   TrendingUp,
@@ -49,7 +49,7 @@ function exportCSV(transactions: Transaction[], fmt: (n: number) => string) {
 
 const MODAL_INPUT = "w-full rounded-xl bg-white/[0.04] border border-[var(--color-border)] text-[13px] px-3 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)] transition";
 
-const RATE = 1180;
+const RATE = 1180; // fallback si la API del blue no responde
 
 // Etiquetas completas y claras para el selector de línea (el value sigue siendo el código corto que espera la DB)
 const LINE_LABELS: { id: ServiceLine; label: string }[] = [
@@ -58,6 +58,25 @@ const LINE_LABELS: { id: ServiceLine; label: string }[] = [
   { id: "Webs", label: "Diseño y desarrollo web" },
   { id: "Diagnóstico", label: "Diagnóstico (Express / Premium)" },
 ];
+
+type TxForm = {
+  dbId: string;
+  date: string;
+  concept: string;
+  line: string;
+  owner: string;
+  type: "ingreso" | "egreso";
+  amount: string;
+  moneda: Currency;
+  cotizacion: string;
+  claseEgreso: "fijo" | "variable";
+};
+
+const MONTHS: Record<string, string> = { "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr", "05": "May", "06": "Jun", "07": "Jul", "08": "Ago", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic" };
+
+function emptyForm(rate: number): TxForm {
+  return { dbId: "", date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "", moneda: "USD", cotizacion: String(rate), claseEgreso: "variable" };
+}
 
 interface FinanzasViewProps {
   initialClients?: Client[];
@@ -71,11 +90,49 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
   const [range, setRange] = useState<Range>("6M");
   const [showAll, setShowAll] = useState(false);
   const [showTxModal, setShowTxModal] = useState(false);
-  const [txForm, setTxForm] = useState({ date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "" });
+  const [isEditing, setIsEditing] = useState(false);
+  const [blueRate, setBlueRate] = useState<number>(RATE);
+  const [blueLoading, setBlueLoading] = useState(false);
+  const [txForm, setTxForm] = useState<TxForm>(emptyForm(RATE));
 
-  const conv = (n: number) => (currency === "USD" ? n : Math.round(n * RATE));
+  // Cotización del dólar blue en vivo (autocompleta el modal y la vista en ARS)
+  useEffect(() => {
+    let alive = true;
+    setBlueLoading(true);
+    fetch("https://dolarapi.com/v1/dolares/blue")
+      .then((r) => r.json())
+      .then((d) => { if (alive && d?.venta) setBlueRate(Math.round(Number(d.venta))); })
+      .catch(() => {})
+      .finally(() => { if (alive) setBlueLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const conv = (n: number) => (currency === "USD" ? n : Math.round(n * blueRate));
   const symbol = currency;
   const fmt = (n: number) => `${symbol} ${fmtN(conv(n))}`;
+
+  function openCreate() {
+    setIsEditing(false);
+    setTxForm({ ...emptyForm(blueRate) });
+    setShowTxModal(true);
+  }
+
+  function openEdit(tx: Transaction) {
+    setIsEditing(true);
+    setTxForm({
+      dbId: tx.dbId ?? "",
+      date: tx.fecha ?? "",
+      concept: tx.c,
+      line: tx.line,
+      owner: tx.owner,
+      type: tx.type === "out" ? "egreso" : "ingreso",
+      amount: String(tx.montoOriginal ?? tx.a),
+      moneda: tx.moneda ?? "USD",
+      cotizacion: String(tx.cotizacion ?? blueRate),
+      claseEgreso: tx.claseEgreso ?? "variable",
+    });
+    setShowTxModal(true);
+  }
 
   const allClients = initialClients ?? CLIENTS;
   const [allTransactions, setAllTransactions] = useState<Transaction[]>(initialTransactions ?? TRANSACTIONS);
@@ -124,7 +181,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             <Button onClick={() => exportCSV(allTransactions, fmt)}>
               <ExternalLink size={12} />Exportar
             </Button>
-            <Button variant="primary" onClick={() => setShowTxModal(true)}>
+            <Button variant="primary" onClick={openCreate}>
               <Plus size={14} />Nueva transacción
             </Button>
           </>
@@ -240,7 +297,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
               </thead>
               <tbody>
                 {(showAll ? allTransactions : allTransactions.slice(0, 8)).map((tx, i) => (
-                  <TransactionRow key={i} tx={tx} format={fmt} />
+                  <TransactionRow key={tx.dbId || i} tx={tx} format={fmt} onEdit={openEdit} />
                 ))}
               </tbody>
             </table>
@@ -284,13 +341,85 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
         </div>
       </div>
 
-      {/* Nueva transacción modal */}
-      {showTxModal && (
+      {/* Nueva / editar transacción modal */}
+      {showTxModal && (() => {
+        const montoOrig = Number(txForm.amount) || 0;
+        const cot = Number(txForm.cotizacion) || blueRate;
+        const montoUsdPreview = txForm.moneda === "ARS" ? (cot > 0 ? montoOrig / cot : 0) : montoOrig;
+
+        const save = async () => {
+          if (!txForm.concept.trim()) return;
+          const supabase = createClient();
+          const saved = { ...txForm };
+          const today = saved.date || new Date().toISOString().slice(0, 10);
+          const [, , dd] = today.split("-");
+          const dLabel = `${dd} ${MONTHS[today.slice(5, 7)] ?? ""}`;
+          const montoUsd = saved.moneda === "ARS" ? (cot > 0 ? Math.round((montoOrig / cot) * 100) / 100 : 0) : montoOrig;
+          const claseEgreso = saved.type === "egreso" ? saved.claseEgreso : null;
+
+          const optimistic: Transaction = {
+            dbId: saved.dbId || undefined,
+            d: dLabel,
+            fecha: today,
+            c: saved.concept.trim(),
+            line: saved.line as Transaction["line"],
+            a: montoUsd,
+            type: saved.type === "egreso" ? "out" : "in",
+            owner: saved.owner as Transaction["owner"],
+            moneda: saved.moneda,
+            montoOriginal: montoOrig,
+            cotizacion: saved.moneda === "ARS" ? cot : undefined,
+            claseEgreso: claseEgreso ?? undefined,
+          };
+
+          const payload = {
+            fecha: today,
+            tipo: saved.type,
+            concepto: saved.concept.trim(),
+            monto_usd: montoUsd,
+            monto_original: montoOrig,
+            moneda: saved.moneda,
+            cotizacion: saved.moneda === "ARS" ? cot : null,
+            clase_egreso: claseEgreso,
+            linea_servicio: saved.line,
+            owner_initials: saved.owner,
+          };
+
+          setShowTxModal(false);
+
+          if (isEditing && saved.dbId) {
+            setAllTransactions((prev) => prev.map((t) => (t.dbId === saved.dbId ? optimistic : t)));
+            toast.success(`Transacción "${saved.concept}" actualizada`);
+            const { error } = await supabase.from("transacciones").update(payload).eq("id", saved.dbId);
+            if (error) toast.error("Error al actualizar en Supabase");
+          } else {
+            setAllTransactions((prev) => [optimistic, ...prev]);
+            toast.success(`Transacción "${saved.concept}" registrada`);
+            const { data, error } = await supabase.from("transacciones").insert(payload).select("id").single();
+            if (error) toast.error("Error al guardar en Supabase");
+            else if (data?.id) {
+              const newId = String(data.id);
+              setAllTransactions((prev) => prev.map((t) => (t === optimistic ? { ...t, dbId: newId } : t)));
+            }
+          }
+        };
+
+        const handleDelete = async () => {
+          if (!txForm.dbId) return;
+          const supabase = createClient();
+          const id = txForm.dbId;
+          setAllTransactions((prev) => prev.filter((t) => t.dbId !== id));
+          setShowTxModal(false);
+          const { error } = await supabase.from("transacciones").delete().eq("id", id);
+          if (error) toast.error("Error al eliminar"); else toast.success("Transacción eliminada");
+        };
+
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowTxModal(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative z-10 w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-[15px] font-semibold">Nueva transacción</h2>
+              <h2 className="text-[15px] font-semibold">{isEditing ? "Editar transacción" : "Nueva transacción"}</h2>
               <button onClick={() => setShowTxModal(false)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-transparent border-0 cursor-pointer">✕</button>
             </div>
             <div className="space-y-3.5">
@@ -301,69 +430,85 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Tipo</label>
-                  <select value={txForm.type} onChange={(e) => setTxForm((f) => ({ ...f, type: e.target.value }))} className={MODAL_INPUT}>
+                  <select value={txForm.type} onChange={(e) => setTxForm((f) => ({ ...f, type: e.target.value as TxForm["type"] }))} className={MODAL_INPUT}>
                     <option value="ingreso">Ingreso</option>
                     <option value="egreso">Egreso</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Monto (USD)</label>
-                  <input type="number" value={txForm.amount} onChange={(e) => setTxForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0" className={MODAL_INPUT} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Línea</label>
-                  <select value={txForm.line} onChange={(e) => setTxForm((f) => ({ ...f, line: e.target.value }))} className={MODAL_INPUT}>
-                    {LINE_LABELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Moneda</label>
+                  <select value={txForm.moneda} onChange={(e) => setTxForm((f) => ({ ...f, moneda: e.target.value as Currency, cotizacion: f.cotizacion || String(blueRate) }))} className={MODAL_INPUT}>
+                    <option value="USD">USD (dólares)</option>
+                    <option value="ARS">ARS (pesos)</option>
                   </select>
                 </div>
+              </div>
+
+              {txForm.type === "egreso" && (
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Fecha</label>
-                  <input type="date" value={txForm.date} onChange={(e) => setTxForm((f) => ({ ...f, date: e.target.value }))} className={MODAL_INPUT} />
+                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Egreso</label>
+                  <select value={txForm.claseEgreso} onChange={(e) => setTxForm((f) => ({ ...f, claseEgreso: e.target.value as TxForm["claseEgreso"] }))} className={MODAL_INPUT}>
+                    <option value="fijo">Fijo</option>
+                    <option value="variable">Variable</option>
+                  </select>
                 </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Monto ({txForm.moneda})</label>
+                  <input type="number" value={txForm.amount} onChange={(e) => setTxForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0" className={MODAL_INPUT} />
+                </div>
+                {txForm.moneda === "ARS" ? (
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">
+                      Cotización {blueLoading ? "…" : "(blue)"}
+                    </label>
+                    <input type="number" value={txForm.cotizacion} onChange={(e) => setTxForm((f) => ({ ...f, cotizacion: e.target.value }))} placeholder={String(blueRate)} className={MODAL_INPUT} />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Fecha</label>
+                    <input type="date" value={txForm.date} onChange={(e) => setTxForm((f) => ({ ...f, date: e.target.value }))} className={MODAL_INPUT} />
+                  </div>
+                )}
+              </div>
+
+              {txForm.moneda === "ARS" && (
+                <>
+                  <div className="text-[11.5px] text-[var(--color-text-muted)] font-mono -mt-1">
+                    ≈ USD {montoUsdPreview.toLocaleString("en-US", { maximumFractionDigits: 2 })} <span className="text-[var(--color-text-dim)]">(se guarda convertido al blue)</span>
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Fecha</label>
+                    <input type="date" value={txForm.date} onChange={(e) => setTxForm((f) => ({ ...f, date: e.target.value }))} className={MODAL_INPUT} />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Línea</label>
+                <select value={txForm.line} onChange={(e) => setTxForm((f) => ({ ...f, line: e.target.value }))} className={MODAL_INPUT}>
+                  {LINE_LABELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+                </select>
               </div>
             </div>
             <div className="flex gap-2 mt-6">
+              {isEditing && (
+                <button onClick={handleDelete} className="py-2 px-3 rounded-xl text-[13px] text-[var(--color-danger)] border border-[rgba(255,84,102,0.3)] bg-transparent cursor-pointer transition hover:bg-[rgba(255,84,102,0.08)]">Eliminar</button>
+              )}
               <button onClick={() => setShowTxModal(false)} className="flex-1 py-2 rounded-xl text-[13px] text-[var(--color-text-muted)] border border-[var(--color-border)] bg-transparent cursor-pointer transition hover:border-[var(--color-border-2)]">Cancelar</button>
               <button
-                onClick={async () => {
-                  if (!txForm.concept.trim()) return;
-                  const supabase = createClient();
-                  const saved = { ...txForm };
-                  const today = saved.date || new Date().toISOString().slice(0, 10);
-                  const [, , dd] = today.split("-");
-                  const MONTHS: Record<string, string> = { "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr", "05": "May", "06": "Jun", "07": "Jul", "08": "Ago", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic" };
-                  const optimistic: Transaction = {
-                    d: `${dd} ${MONTHS[today.slice(5, 7)] ?? ""}`,
-                    c: saved.concept.trim(),
-                    line: saved.line as Transaction["line"],
-                    a: Number(saved.amount) || 0,
-                    type: saved.type === "egreso" ? "out" : "in",
-                    owner: saved.owner as Transaction["owner"],
-                  };
-                  setAllTransactions((prev) => [optimistic, ...prev]);
-                  setShowTxModal(false);
-                  setTxForm({ date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "" });
-                  toast.success(`Transacción "${saved.concept}" registrada`);
-                  const { error } = await supabase.from("transacciones").insert({
-                    fecha: today,
-                    tipo: saved.type as "ingreso" | "egreso",
-                    concepto: saved.concept.trim(),
-                    monto_usd: Number(saved.amount) || 0,
-                    linea_servicio: saved.line,
-                    owner_initials: saved.owner,
-                  });
-                  if (error) toast.error("Error al guardar en Supabase");
-                }}
+                onClick={save}
                 className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer hover:opacity-90 transition"
               >
-                Guardar
+                {isEditing ? "Guardar cambios" : "Guardar"}
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </>
   );
 }
