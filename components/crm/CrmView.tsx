@@ -38,10 +38,12 @@ export function CrmView({ initialProspects }: CrmViewProps) {
     [prospects, ownerFilter, lineFilter, search],
   );
 
-  const totalValue = filtered.reduce((s, p) => s + p.value, 0);
-  const won        = filtered.filter((p) => p.stage === "venta").length;
-  const convRate   = filtered.length ? Math.round((won / filtered.length) * 100) : 0;
-  const avgDeal    = filtered.length ? Math.round(totalValue / filtered.length) : 0;
+  const totalValue  = filtered.reduce((s, p) => s + p.value, 0);
+  const won         = filtered.filter((p) => p.stage === "venta").length;
+  const convRate    = filtered.length ? Math.round((won / filtered.length) * 100) : 0;
+  const avgDeal     = filtered.length ? Math.round(totalValue / filtered.length) : 0;
+  const activos     = filtered.filter((p) => ["lead", "discovery", "call1", "propuesta", "call2"].includes(p.stage)).length;
+  const porRellamar = filtered.filter((p) => p.recall).length;
 
   async function moveProspect(prospect: Prospect, dir: "prev" | "next") {
     const idx = ACTIVE_STAGES.indexOf(prospect.stage as StageId);
@@ -92,10 +94,10 @@ export function CrmView({ initialProspects }: CrmViewProps) {
       />
 
       <StatGrid>
-        <StatCard label="Conversión"     icon={Target}    value={convRate}        unit="%" delta={{ value: "+2%",  direction: "up"   }} sub="vs trimestre anterior" />
-        <StatCard label="Ciclo promedio" icon={Clock}     value="18"              unit="d" delta={{ value: "-3d",  direction: "down" }} sub="más rápido este mes"   />
-        <StatCard label="Deal promedio"  icon={DollarSign} currency="$" value={fmtN(avgDeal)} delta={{ value: "+18%", direction: "up" }} sub="vs Q1" />
-        <StatCard label="Próx. follow-ups" icon={Bell}   value="4"                       sub="esta semana · 2 hoy" />
+        <StatCard label="Conversión"    icon={Target}     value={convRate}        unit="%" sub={`${won} ${won === 1 ? "venta" : "ventas"} de ${filtered.length}`} />
+        <StatCard label="Activos"       icon={Clock}      value={activos}                  sub="en pipeline abierto" />
+        <StatCard label="Deal promedio" icon={DollarSign} currency="$" value={fmtN(avgDeal)} sub="valor medio en el funnel" />
+        <StatCard label="Por rellamar"  icon={Bell}       value={porRellamar}              sub={porRellamar === 1 ? "prospecto pendiente" : "prospectos pendientes"} />
       </StatGrid>
 
       <PipelineFilters

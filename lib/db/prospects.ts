@@ -20,6 +20,7 @@ function rowToProspect(row: Record<string, unknown>, idx: number): Prospect {
       : String(row.created_at ?? "").slice(0, 10),
     last: String(row.last_activity ?? "—"),
     source: String(row.fuente ?? "Web"),
+    recall: Boolean(String(row.volver_a_llamar ?? "").trim()),
   };
 }
 
@@ -29,12 +30,12 @@ export async function getProspects(): Promise<Prospect[]> {
   const { data, error } = await supabase
     .from("prospectos_ext")
     .select(
-      "id, negocio, nombre_dueno, fuente, etapa, linea_servicio, valor_estimado, asignado_initials, last_activity, fecha_contacto, created_at",
+      "id, negocio, nombre_dueno, fuente, etapa, linea_servicio, valor_estimado, asignado_initials, last_activity, fecha_contacto, created_at, volver_a_llamar",
     )
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
-  return data.map((row, i) => rowToProspect(row as Record<string, unknown>, i));
+  return data.map((row, i) => rowToProspect(row as unknown as Record<string, unknown>, i));
 }
 
 export async function updateProspectStage(id: string, etapa: StageId): Promise<void> {

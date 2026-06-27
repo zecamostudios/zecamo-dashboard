@@ -24,6 +24,7 @@ import {
   Workflow,
   Brain,
   Cpu,
+  Bot,
   Activity,
   X,
   type LucideIcon,
@@ -66,6 +67,7 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
       label: "General",
       items: [
         { href: "/", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/asistente", label: "Asistente", icon: Bot, dot: true },
         { href: "/crm", label: "CRM", icon: Users, badge: prospectsCount },
         { href: "/clientes", label: "Clientes", icon: User },
         { href: "/proyectos", label: "Proyectos", icon: Folder },

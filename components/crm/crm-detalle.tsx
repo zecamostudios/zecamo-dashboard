@@ -30,7 +30,10 @@ const prospectoSchema = z.object({
   fuente: z.string().optional(),
   fecha_contacto: z.string().optional(),
   volver_a_llamar: z.string().optional(),
-  estado: z.enum(ESTADOS_PROSPECTO),
+  // Antes era z.enum(ESTADOS_PROSPECTO): si el prospecto venía con un estado
+  // legacy/SDR fuera del enum, la validación fallaba en silencio y Guardar no
+  // hacía nada. Lo dejamos como string para no bloquear el submit.
+  estado: z.string().min(1, "Requerido"),
   notas: z.string().optional(),
   notas_llamadas: z.string().optional(),
   ultimo_resultado: z.string().optional(),
@@ -90,6 +93,11 @@ export function CrmDetalle({ prospecto, interacciones, profiles, userId }: Props
     if (error) { toast.error("Error: " + error.message); setDeleting(false); return; }
     toast.success("Prospecto eliminado");
     router.push("/crm");
+  }
+
+  function onInvalid(errs: Record<string, { message?: string }>) {
+    const first = Object.values(errs)[0]?.message;
+    toast.error(first ? `Revisá el formulario: ${first}` : "Hay campos inválidos en el formulario");
   }
 
   async function onSave(data: ProspectoForm) {
@@ -165,7 +173,7 @@ export function CrmDetalle({ prospecto, interacciones, profiles, userId }: Props
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-5">
-          <form onSubmit={handleSubmit(onSave)}>
+          <form onSubmit={handleSubmit(onSave, onInvalid)}>
             <Card>
               <CardHeader><CardTitle className="text-base">Datos del prospecto</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -254,7 +262,7 @@ export function CrmDetalle({ prospecto, interacciones, profiles, userId }: Props
           </form>
 
           {/* Seguimiento de llamadas */}
-          <form onSubmit={handleSubmit(onSave)}>
+          <form onSubmit={handleSubmit(onSave, onInvalid)}>
             <Card className="border-2 border-blue-100">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">

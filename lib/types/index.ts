@@ -43,6 +43,7 @@ export interface Prospect {
   date: string;
   last: string;
   source: string;
+  recall?: boolean;
 }
 
 export type ClientStatus = "active" | "onboarding" | "paused";
