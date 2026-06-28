@@ -13,7 +13,7 @@ export interface TableInfo {
 }
 
 export const ALLOWED_TABLES: TableInfo[] = [
-  { name: "prospectos",            desc: "CRM: prospectos del pipeline de ventas. Campos clave: negocio, nombre_dueno, telefono, email, fuente, etapa (lead/discovery/call1/propuesta/call2/venta/noresp/noventa/seguim), estado, linea_servicio, valor_estimado, fecha_contacto, volver_a_llamar, ultimo_resultado, notas, notas_llamadas, asignado_a." },
+  { name: "prospectos",            desc: "CRM: prospectos del pipeline de ventas. El campo que marca el avance es 'etapa' (USÁ ESTE): lead/discovery/call1/propuesta/call2/venta/noresp/noventa/seguim. El campo 'estado' es secundario y tiene una lista cerrada distinta (initiated/engaged/calendly/booked/no_interesado/agendado, default initiated): si no estás seguro NO lo mandes y la base usa su default. Otros campos: negocio, nombre_dueno, telefono, email, fuente, linea_servicio, valor_estimado, fecha_contacto, volver_a_llamar, ultimo_resultado, notas, notas_llamadas, asignado_a. Para campos de texto opcionales vacíos, OMITILOS en vez de mandar cadena vacía." },
   { name: "interacciones_prospecto", desc: "Interacciones registradas de un prospecto (timeline). Campos: prospecto_id, tipo (llamada/email/mensaje/reunion/nota), contenido, creado_por, fecha." },
   { name: "clientes",              desc: "Clientes activos de la agencia. Campos típicos: nombre, contacto, email, telefono, linea_servicio, estado (activo/pausado/churn), mrr, fecha_alta." },
   { name: "proyectos",            desc: "Proyectos en ejecución para clientes. Campos: nombre, cliente_id, estado, fecha_inicio, fecha_entrega, descripcion, progreso." },

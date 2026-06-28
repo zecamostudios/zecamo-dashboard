@@ -15,7 +15,7 @@ type ViewItem =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
   | { kind: "system"; text: string }
-  | { kind: "pending"; writes: PendingWrite[]; resolved?: "confirmed" | "cancelled" };
+  | { kind: "pending"; writes: PendingWrite[]; resolved?: "confirmed" | "cancelled" | "error"; errorDetail?: string };
 
 // Mensajes en formato OpenAI — el server los devuelve actualizados y los
 // reusamos tal cual (los guardamos opacos y los reenviamos).
@@ -46,7 +46,7 @@ export function AsistenteChat() {
   }, [view, loading]);
 
   function applyResult(
-    result: { type: string; text?: string; writes?: PendingWrite[]; messages: ApiMessage[]; error?: string },
+    result: { type: string; text?: string; writes?: PendingWrite[]; messages: ApiMessage[]; error?: string; applied?: { id: string; ok: boolean; detail: string }[] },
   ) {
     if (result.error) {
       setView((v) => [...v, { kind: "system", text: `⚠ ${result.error}` }]);
@@ -89,7 +89,9 @@ export function AsistenteChat() {
     if (item?.kind !== "pending" || item.resolved || loading) return;
     const confirmations: Record<string, boolean> = {};
     for (const w of item.writes) confirmations[w.id] = approve;
-    setView((v) => v.map((it, i) => (i === idx ? { ...it, resolved: approve ? "confirmed" : "cancelled" } as ViewItem : it)));
+    if (!approve) {
+      setView((v) => v.map((it, i) => (i === idx ? { ...it, resolved: "cancelled" } as ViewItem : it)));
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/asistente/chat", {
@@ -98,6 +100,13 @@ export function AsistenteChat() {
         body: JSON.stringify({ messages: convo, confirmations }),
       });
       const data = await res.json();
+      if (approve && !data.error) {
+        const map: Record<string, { ok: boolean; detail: string }> = {};
+        for (const a of data.applied ?? []) map[a.id] = a;
+        const ok = item.writes.every((w) => map[w.id]?.ok);
+        const firstErr = item.writes.map((w) => map[w.id]).find((a) => a && !a.ok);
+        setView((v) => v.map((it, i) => (i === idx ? { ...it, resolved: ok ? "confirmed" : "error", errorDetail: firstErr?.detail } as ViewItem : it)));
+      }
       applyResult(data);
     } catch {
       setView((v) => [...v, { kind: "system", text: "⚠ Error de red al confirmar." }]);
@@ -190,9 +199,16 @@ export function AsistenteChat() {
               </div>
 
               {item.resolved ? (
-                <div className={`mt-3 text-[13px] flex items-center gap-1.5 ${item.resolved === "confirmed" ? "text-emerald-400" : "text-[var(--color-text-dim)]"}`}>
-                  {item.resolved === "confirmed" ? <><Check size={14} /> Aplicado</> : <><X size={14} /> Cancelado</>}
-                </div>
+                item.resolved === "error" ? (
+                  <div className="mt-3 text-[13px] text-red-400">
+                    <div className="flex items-center gap-1.5"><X size={14} /> No se pudo guardar</div>
+                    {item.errorDetail && <p className="mt-1 text-[12px] text-red-400/80 font-mono break-words">{item.errorDetail}</p>}
+                  </div>
+                ) : (
+                  <div className={`mt-3 text-[13px] flex items-center gap-1.5 ${item.resolved === "confirmed" ? "text-emerald-400" : "text-[var(--color-text-dim)]"}`}>
+                    {item.resolved === "confirmed" ? <><Check size={14} /> Aplicado</> : <><X size={14} /> Cancelado</>}
+                  </div>
+                )
               ) : (
                 <div className="mt-3 flex items-center gap-2">
                   <Button variant="primary" onClick={() => resolvePending(i, true)} disabled={loading}>

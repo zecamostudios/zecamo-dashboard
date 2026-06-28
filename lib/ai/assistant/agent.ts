@@ -22,6 +22,8 @@ Reglas:
 - Si no sabés en qué tabla o campo va algo, o si falta un dato importante (ej: a qué cliente corresponde un gasto), PREGUNTÁ en vez de inventar. Es mejor una repregunta que un dato mal cargado.
 - Las herramientas de escritura (crear, actualizar, eliminar) las confirma Joaco antes de ejecutarse. No hace falta que pidas permiso por texto: invocá la herramienta directamente y el dashboard le mostrará la confirmación. Sí explicá brevemente qué vas a hacer.
 - Las fechas en formato ISO (YYYY-MM-DD). Para montos de finanzas, si Joaco da pesos aclarale que cargás el monto y la moneda.
+- NO inventes valores para campos con lista cerrada (enum/check). Si no sabés el valor exacto permitido, OMITÍ el campo (la base usa su default) o preguntá. Para campos de texto opcionales que están vacíos, omitilos en vez de mandar "".
+- Si una herramienta devuelve un error, LEELO y corregí la causa puntual; no reintentes el mismo registro probando valores al azar. Si no podés resolverlo en 1 intento, explicá el error y preguntá.
 - Sé conciso. Cuando termines una acción, confirmá en una línea qué quedó hecho.`;
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -32,9 +34,15 @@ export interface PendingWrite {
   input: Record<string, unknown>;
 }
 
+export interface AppliedWrite {
+  id: string;
+  ok: boolean;
+  detail: string;
+}
+
 export type AgentResult =
-  | { type: "message"; text: string; messages: Msg[] }
-  | { type: "confirm"; text: string; writes: PendingWrite[]; messages: Msg[] };
+  | { type: "message"; text: string; messages: Msg[]; applied?: AppliedWrite[] }
+  | { type: "confirm"; text: string; writes: PendingWrite[]; messages: Msg[]; applied?: AppliedWrite[] };
 
 function parseArgs(raw: string): Record<string, unknown> {
   try {
@@ -55,20 +63,25 @@ export async function runAgent(
 ): Promise<AgentResult> {
   const openai = client();
   const msgs: Msg[] = [...messages];
+  let applied: AppliedWrite[] | undefined;
 
   // Continuación tras una confirmación: resolvemos los tool_calls del último turno.
   if (confirmations) {
     const last = msgs[msgs.length - 1];
     if (last?.role === "assistant" && last.tool_calls?.length) {
+      applied = [];
       for (const call of last.tool_calls) {
         if (call.type !== "function") continue;
         const name = call.function.name;
         const input = parseArgs(call.function.arguments);
         let content: string;
         if (isWriteTool(name)) {
-          content = confirmations[call.id]
-            ? await executeTool(name, input)
-            : "El usuario canceló esta acción. No se modificó nada.";
+          if (confirmations[call.id]) {
+            content = await executeTool(name, input);
+            applied.push({ id: call.id, ok: !content.startsWith("Error"), detail: content });
+          } else {
+            content = "El usuario canceló esta acción. No se modificó nada.";
+          }
         } else {
           content = await executeTool(name, input);
         }
@@ -103,6 +116,7 @@ export async function runAgent(
           text: choice.content ?? "",
           writes: writes.map((c) => ({ id: c.id, name: c.function.name, input: parseArgs(c.function.arguments) })),
           messages: msgs,
+          applied,
         };
       }
 
@@ -115,8 +129,8 @@ export async function runAgent(
     }
 
     msgs.push(choice);
-    return { type: "message", text: choice.content ?? "", messages: msgs };
+    return { type: "message", text: choice.content ?? "", messages: msgs, applied };
   }
 
-  return { type: "message", text: "Corté el procesamiento tras demasiados pasos. Probá de nuevo o reformulá.", messages: msgs };
+  return { type: "message", text: "Corté el procesamiento tras demasiados pasos. Probá de nuevo o reformulá.", messages: msgs, applied };
 }
