@@ -26,15 +26,20 @@ function rowToProspect(row: Record<string, unknown>, idx: number): Prospect {
 
 export async function getProspects(): Promise<Prospect[]> {
   const supabase = await createClient();
-  // Use prospectos_ext view which joins profiles for asignado_initials
+  // Leemos la tabla directa: la vista prospectos_ext no existe en esta base
+  // (la migración que la creaba no se aplicó), y consultarla devolvía [] en
+  // silencio dejando el CRM vacío. Las iniciales del asignado caen al default.
   const { data, error } = await supabase
-    .from("prospectos_ext")
+    .from("prospectos")
     .select(
-      "id, negocio, nombre_dueno, fuente, etapa, linea_servicio, valor_estimado, asignado_initials, last_activity, fecha_contacto, created_at, volver_a_llamar",
+      "id, negocio, nombre_dueno, fuente, etapa, linea_servicio, valor_estimado, fecha_contacto, created_at, volver_a_llamar, asignado_a",
     )
     .order("created_at", { ascending: false });
 
-  if (error || !data) return [];
+  if (error || !data) {
+    if (error) console.error("[getProspects]", error.message);
+    return [];
+  }
   return data.map((row, i) => rowToProspect(row as unknown as Record<string, unknown>, i));
 }
 
