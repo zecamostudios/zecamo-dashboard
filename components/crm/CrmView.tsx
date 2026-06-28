@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Search, Target, Clock, DollarSign, Bell } from "lucide-react";
 import { fmtN, fmtUsd } from "@/lib/utils";
@@ -15,6 +15,28 @@ import type { OwnerId, Prospect, ServiceLine, StageId } from "@/lib/types";
 
 const ACTIVE_STAGES: StageId[] = ["lead", "discovery", "call1", "propuesta", "call2", "venta"];
 
+const PROSPECT_COLS =
+  "id, negocio, nombre_dueno, fuente, etapa, linea_servicio, valor_estimado, fecha_contacto, created_at, volver_a_llamar";
+
+function mapRow(row: Record<string, unknown>, idx: number): Prospect {
+  return {
+    id: idx + 1,
+    dbId: String(row.id ?? ""),
+    name: String(row.nombre_dueno ?? row.negocio ?? ""),
+    company: String(row.negocio ?? ""),
+    owner: "JS" as OwnerId,
+    line: (String(row.linea_servicio ?? "Webs")) as ServiceLine,
+    stage: (String(row.etapa ?? "lead")) as StageId,
+    value: Number(row.valor_estimado ?? 0),
+    date: row.fecha_contacto
+      ? new Date(String(row.fecha_contacto)).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })
+      : String(row.created_at ?? "").slice(0, 10),
+    last: "—",
+    source: String(row.fuente ?? "Web"),
+    recall: Boolean(String(row.volver_a_llamar ?? "").trim()),
+  };
+}
+
 interface CrmViewProps {
   initialProspects?: Prospect[];
 }
@@ -25,6 +47,24 @@ export function CrmView({ initialProspects }: CrmViewProps) {
   const [lineFilter,  setLineFilter]  = useState<ServiceLine | "all">("all");
   const [search, setSearch] = useState("");
   const supabase = createClient();
+
+  // Recarga desde el navegador (sesión garantizada). Cubre el caso en que el
+  // render del server no traiga datos y refleja lo que cargó el asistente sin
+  // tener que recargar a mano.
+  useEffect(() => {
+    let activo = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from("prospectos")
+        .select(PROSPECT_COLS)
+        .order("created_at", { ascending: false });
+      if (activo && !error && data) {
+        setProspects(data.map((r, i) => mapRow(r as Record<string, unknown>, i)));
+      }
+    })();
+    return () => { activo = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(
     () => prospects.filter(
