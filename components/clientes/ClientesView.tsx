@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, User, DollarSign, TrendingUp, Check, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, User, DollarSign, TrendingUp, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
-import { CLIENTS, LINES } from "@/lib/mock-data";
+import { LINES } from "@/lib/mock-data";
 import { fmtN } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -11,7 +12,6 @@ import { Button } from "@/components/ui-zecamo/Button";
 import { Chip } from "@/components/ui-zecamo/Chip";
 import { StatCard, StatGrid } from "@/components/dashboard/StatCard";
 import { ClientesTable } from "./ClientesTable";
-import { ClienteDetail } from "./ClienteDetail";
 import type { Client, ClientStatus, ServiceLine } from "@/lib/types";
 
 const MODAL_INPUT =
@@ -22,25 +22,16 @@ interface ClientesViewProps {
 }
 
 export function ClientesView({ initialClients }: ClientesViewProps) {
-  const [clients, setClients] = useState<Client[]>(initialClients ?? CLIENTS);
-  const [selected, setSelected] = useState<Client | null>(null);
+  const router = useRouter();
+  const [clients, setClients] = useState<Client[]>(initialClients ?? []);
   const [lineFilter, setLineFilter] = useState<ServiceLine | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ClientStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", contact: "", line: "Webs", mrr: "", status: "onboarding" });
 
-  if (selected) {
-    return (
-      <ClienteDetail
-        client={selected}
-        onBack={() => setSelected(null)}
-        onDelete={(dbId) => {
-          setClients((prev) => prev.filter((c) => c.dbId !== dbId));
-          setSelected(null);
-        }}
-      />
-    );
+  function openCliente(c: Client) {
+    if (c.dbId) router.push(`/clientes/${c.dbId}`);
   }
 
   const filtered = clients.filter(
@@ -54,6 +45,10 @@ export function ClientesView({ initialClients }: ClientesViewProps) {
   const totalMrr = clients
     .filter((c) => c.status === "active")
     .reduce((s, c) => s + c.mrr, 0);
+  const avgHealth = clients.length
+    ? Math.round(clients.reduce((s, c) => s + (c.health ?? 0), 0) / clients.length)
+    : 0;
+  const enRiesgo = clients.filter((c) => (c.health ?? 100) < 60).length;
 
   const STATUSES: { id: ClientStatus | "all"; l: string }[] = [
     { id: "all", l: "Todos" },
@@ -132,9 +127,9 @@ export function ClientesView({ initialClients }: ClientesViewProps) {
 
       <StatGrid>
         <StatCard label="Activos" icon={User} value={active} sub={`de ${clients.length} totales`} />
-        <StatCard label="MRR total" icon={DollarSign} currency="$" value={fmtN(totalMrr)} delta={{ value: "+12%", direction: "up" }} />
-        <StatCard label="Health promedio" icon={TrendingUp} value="79" unit="/100" sub="2 en riesgo" />
-        <StatCard label="Retención 90d" icon={Check} value="94" unit="%" delta={{ value: "+4%", direction: "up" }} />
+        <StatCard label="MRR total" icon={DollarSign} currency="$" value={fmtN(totalMrr)} sub="clientes activos" />
+        <StatCard label="Health promedio" icon={TrendingUp} value={avgHealth} unit="/100" sub={`${enRiesgo} en riesgo`} />
+        <StatCard label="En riesgo" icon={AlertTriangle} value={enRiesgo} sub="health < 60" />
       </StatGrid>
 
       <div className="flex items-center gap-2 mb-[18px] flex-wrap">
@@ -150,7 +145,7 @@ export function ClientesView({ initialClients }: ClientesViewProps) {
         ))}
       </div>
 
-      <ClientesTable clients={filtered} onSelect={setSelected} />
+      <ClientesTable clients={filtered} onSelect={openCliente} />
 
       {showModal && (
         <div

@@ -10,12 +10,10 @@ import {
   Folder,
   Calculator,
   Wallet,
-  Megaphone,
   Target,
   CheckSquare,
   BarChart3,
   BookOpen,
-  Settings,
   ChevronUp,
   Sparkles,
   CalendarDays,
@@ -76,7 +74,6 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
       items: [
         { href: "/pricing", label: "Calculadora", icon: Calculator },
         { href: "/finanzas", label: "Finanzas", icon: Wallet },
-        { href: "/outbound", label: "Outbound", icon: Megaphone, dot: true },
         { href: "/outbound/cola", label: "Prospección", icon: Target },
         { href: "/tareas", label: "Tareas", icon: CheckSquare, badge: tasksCount },
         { href: "/analytics", label: "Analíticas", icon: BarChart3 },
@@ -97,7 +94,6 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
       items: [
         { href: "/health",         label: "System Health",  icon: Activity },
         { href: "/manual",         label: "Manual",         icon: BookOpen },
-        { href: "/configuracion",  label: "Configuración",  icon: Settings },
       ],
     },
   ];

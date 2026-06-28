@@ -1,45 +1,20 @@
-import { Target, Clock, DollarSign, TrendingUp } from "lucide-react";
+import { Target, Users, DollarSign, TrendingUp } from "lucide-react";
 import { StatCard, StatGrid } from "@/components/dashboard/StatCard";
 
 interface KpiGridProps {
   closeRate: number;
-  totalCycle: number;
+  totalProspects: number;
   avgDeal: number;
+  pipelineValue: number;
 }
 
-export function KpiGrid({ closeRate, totalCycle, avgDeal }: KpiGridProps) {
+export function KpiGrid({ closeRate, totalProspects, avgDeal, pipelineValue }: KpiGridProps) {
   return (
     <StatGrid>
-      <StatCard
-        label="Tasa de cierre"
-        icon={Target}
-        value={closeRate}
-        unit="%"
-        delta={{ value: "+2%", direction: "up" }}
-        sub="vs período anterior"
-      />
-      <StatCard
-        label="Ciclo promedio"
-        icon={Clock}
-        value={totalCycle.toFixed(1)}
-        unit="d"
-        delta={{ value: "-2.1d", direction: "down" }}
-        sub="más rápido"
-      />
-      <StatCard
-        label="Deal promedio"
-        icon={DollarSign}
-        currency="$"
-        value={avgDeal.toLocaleString("en-US")}
-        delta={{ value: "+18%", direction: "up" }}
-      />
-      <StatCard
-        label="LTV / CAC"
-        icon={TrendingUp}
-        value="4.8"
-        unit="x"
-        delta={{ value: "Healthy", direction: "up" }}
-      />
+      <StatCard label="Tasa de cierre" icon={Target} value={closeRate} unit="%" sub="prospectos ganados" />
+      <StatCard label="Prospectos" icon={Users} value={totalProspects} sub="en total" />
+      <StatCard label="Deal promedio" icon={DollarSign} currency="$" value={avgDeal.toLocaleString("en-US")} sub="valor medio" />
+      <StatCard label="Pipeline activo" icon={TrendingUp} currency="$" value={pipelineValue.toLocaleString("en-US")} sub="potencial en curso" />
     </StatGrid>
   );
 }

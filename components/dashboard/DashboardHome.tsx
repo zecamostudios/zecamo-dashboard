@@ -87,24 +87,19 @@ export function DashboardHome({ stats, meetings, activity, projects, tasks, pros
           currency="$"
           value={fmtN(totalMrr)}
           unit="/mo"
-          delta={{ value: "+16.7%", direction: "up" }}
-          sub="vs Abril"
-          spark={<Sparkline data={[2400, 2900, 3200, 3600, 4100, 4400, totalMrr]} color="#3F6FFF" height={32} />}
+          sub="recurrente mensual"
         />
         <StatCard
           label="Clientes activos"
           icon={Briefcase}
           value={activeClients}
-          delta={{ value: "+2", direction: "up" }}
-          sub="en onboarding: 2"
-          spark={<Sparkline data={[3, 4, 4, 5, 5, 6, activeClients]} color="#22C58B" height={32} />}
+          sub="con contrato vigente"
         />
         <StatCard
           label="Ingresos del mes"
           icon={TrendingUp}
           currency="$"
           value={fmtN(monthRevenue)}
-          delta={{ value: "+24%", direction: "up" }}
           sub={`meta: $${fmtN(MONTH_TARGET)}`}
           spark={<Sparkline data={allFinance.map((d) => d.in)} color="#A47BFF" height={32} />}
         />

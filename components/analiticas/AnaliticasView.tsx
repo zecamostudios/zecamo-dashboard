@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ExternalLink, Target, Clock, Sparkles, Globe } from "lucide-react";
+import { useMemo } from "react";
+import { ExternalLink, Target, Sparkles, Globe } from "lucide-react";
 import { toast } from "sonner";
-import { OWNERS, STAGES, PROSPECTS, LINES } from "@/lib/mock-data";
+import { OWNERS, STAGES, LINES } from "@/lib/mock-data";
 import type { FinancePoint, Prospect, StageId } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
-import { Tabs } from "@/components/ui-zecamo/Tabs";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { Pill } from "@/components/ui-zecamo/Pill";
 import { KpiGrid } from "./KpiGrid";
-import { FunnelChart, type StageTime } from "./FunnelChart";
+import { FunnelChart } from "./FunnelChart";
 import { RetentionTable } from "./RetentionTable";
-
-type Period = "Mes" | "3M" | "6M" | "YTD";
 
 const EXCLUDED: StageId[] = ["noresp", "noventa", "seguim"];
 
@@ -24,9 +21,7 @@ interface AnaliticasViewProps {
 }
 
 export function AnaliticasView({ initialProspects }: AnaliticasViewProps) {
-  const [period, setPeriod] = useState<Period>("6M");
-
-  const allProspects = initialProspects ?? PROSPECTS;
+  const allProspects = initialProspects ?? [];
 
   const cumulativeStages = useMemo(() => {
     const active = STAGES.filter((s) => !EXCLUDED.includes(s.id));
@@ -45,21 +40,16 @@ export function AnaliticasView({ initialProspects }: AnaliticasViewProps) {
       .reverse();
   }, [allProspects]);
 
-  const stageTime: StageTime[] = [
-    { id: "lead", l: "Lead nuevo", d: 1.5 },
-    { id: "discovery", l: "Discovery agendada", d: 3.2 },
-    { id: "call1", l: "Llamada 1 hecha", d: 4.1 },
-    { id: "propuesta", l: "Propuesta agendada", d: 5.8 },
-    { id: "call2", l: "Llamada 2 (cierre)", d: 3.5 },
-  ];
-  const totalCycle = stageTime.reduce((s, t) => s + t.d, 0);
-
   const closeRate = allProspects.length
     ? Math.round((allProspects.filter((p) => p.stage === "venta").length / allProspects.length) * 100)
     : 0;
   const avgDeal = allProspects.length
     ? Math.round(allProspects.reduce((s, p) => s + p.value, 0) / allProspects.length)
     : 0;
+  const totalProspects = allProspects.length;
+  const pipelineValue = allProspects
+    .filter((p) => !["venta", "noresp", "noventa", "seguim"].includes(p.stage))
+    .reduce((s, p) => s + p.value, 0);
 
   const closeByOwner = useMemo(
     () =>
@@ -115,8 +105,6 @@ export function AnaliticasView({ initialProspects }: AnaliticasViewProps) {
     [allProspects],
   );
 
-  void period;
-
   function exportCSV() {
     const headers = ["Nombre", "Stage", "Valor", "Owner", "Línea", "Fuente"];
     const rows = allProspects.map((p) => [p.name, p.stage, p.value, p.owner, p.line, p.source]);
@@ -135,47 +123,22 @@ export function AnaliticasView({ initialProspects }: AnaliticasViewProps) {
     <>
       <PageHead
         title="Analíticas"
-        subtitle="Métricas operativas · funnel, tiempos y conversiones"
-        actions={
-          <>
-            <Tabs
-              value={period}
-              onChange={(v) => setPeriod(v as Period)}
-              tabs={(["Mes", "3M", "6M", "YTD"] as const).map((r) => ({ value: r, label: r }))}
-            />
-            <Button onClick={exportCSV}><ExternalLink size={12} />Exportar</Button>
-          </>
-        }
+        subtitle="Métricas operativas · funnel y conversiones"
+        actions={<Button onClick={exportCSV}><ExternalLink size={12} />Exportar</Button>}
       />
 
-      <KpiGrid closeRate={closeRate} totalCycle={totalCycle} avgDeal={avgDeal} />
+      <KpiGrid closeRate={closeRate} totalProspects={totalProspects} avgDeal={avgDeal} pipelineValue={pipelineValue} />
 
-      {/* Funnel + tiempos */}
+      {/* Funnel */}
       <div className="grid grid-cols-12 gap-[14px] mb-[14px]">
-        <Card className="col-span-7 max-[1100px]:col-span-12">
+        <Card className="col-span-12">
           <CardHead>
             <CardTitle big icon={<Target size={16} />}>Funnel de conversión</CardTitle>
             <span className="font-mono text-[11.5px] text-[var(--color-text-muted)]">
-              {PROSPECTS.length} prospectos · {PROSPECTS.filter((p) => p.stage === "venta").length} cerrados
+              {allProspects.length} prospectos · {allProspects.filter((p) => p.stage === "venta").length} cerrados
             </span>
           </CardHead>
-          <FunnelChart stages={cumulativeStages} stageTime={stageTime} mode="funnel" />
-          <div className="mt-[18px] px-3.5 py-3 bg-white/[0.02] border border-[var(--color-border)] rounded-xl text-[12px] text-[var(--color-text-muted)]">
-            <b className="text-[var(--color-text)]">Bottleneck:</b> mayor caída entre{" "}
-            <span className="text-[var(--color-purple)]">Propuesta</span> y{" "}
-            <span className="text-[var(--color-warning)]">Llamada 2</span> — revisar manejo de objeciones.
-          </div>
-        </Card>
-
-        <Card className="col-span-5 max-[1100px]:col-span-12">
-          <CardHead>
-            <CardTitle big icon={<Clock size={16} />}>Tiempo promedio por etapa</CardTitle>
-          </CardHead>
-          <FunnelChart stages={cumulativeStages} stageTime={stageTime} mode="time" />
-          <div className="pt-2 mt-2 border-t border-[var(--color-border)] flex justify-between text-[13px] font-semibold">
-            <span>Total ciclo</span>
-            <span className="font-mono text-[var(--color-primary-hover)]">{totalCycle.toFixed(1)} días</span>
-          </div>
+          <FunnelChart stages={cumulativeStages} stageTime={[]} mode="funnel" />
         </Card>
       </div>
 
