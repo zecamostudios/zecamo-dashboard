@@ -5,6 +5,8 @@ import { Plus, Filter, X, Trash2 } from "lucide-react";
 import { OWNERS } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { useLiveRows } from "@/lib/hooks/useLiveRows";
+import { TASK_COLS, rowToTask } from "@/lib/db/mappers";
 import type { Task, TaskStatus, OwnerId, Priority } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
@@ -39,7 +41,9 @@ interface TaskForm {
 let _counter = 9000;
 
 export function TareasView({ initialTasks }: TareasViewProps) {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks ?? []);
+  const [tasks, setTasks] = useLiveRows(initialTasks ?? [], {
+    table: "tareas", columns: TASK_COLS, order: { column: "created_at" }, map: rowToTask,
+  });
   const [view, setView] = useState<View>("equipo");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);

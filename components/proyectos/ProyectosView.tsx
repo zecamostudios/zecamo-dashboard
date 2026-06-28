@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { PROJECTS, LINES, OWNERS } from "@/lib/mock-data";
+import { LINES, OWNERS } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
+import { useLiveRows } from "@/lib/hooks/useLiveRows";
+import { PROJECT_COLS, rowToProject } from "@/lib/db/mappers";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Chip } from "@/components/ui-zecamo/Chip";
@@ -22,7 +24,9 @@ interface ProyectosViewProps {
 }
 
 export function ProyectosView({ initialProjects }: ProyectosViewProps) {
-  const [projects, setProjects] = useState<Project[]>(initialProjects ?? PROJECTS);
+  const [projects, setProjects] = useLiveRows(initialProjects ?? [], {
+    table: "proyectos", columns: PROJECT_COLS, order: { column: "created_at" }, map: rowToProject,
+  });
   const [view, setView] = useState<"kanban" | "lista">("kanban");
   const [lineFilter, setLineFilter] = useState<ServiceLine | "all">("all");
   const [ownerFilter, setOwnerFilter] = useState<OwnerId | "all">("all");

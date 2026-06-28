@@ -15,8 +15,10 @@ import {
   ArrowRight,
   Clock,
 } from "lucide-react";
-import { CLIENTS, FINANCE, TRANSACTIONS, BY_LINE } from "@/lib/mock-data";
+import { CLIENTS, FINANCE, BY_LINE } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
+import { useLiveRows } from "@/lib/hooks/useLiveRows";
+import { TX_COLS, rowToTransaction } from "@/lib/db/mappers";
 import { fmtN } from "@/lib/utils";
 import { toast } from "sonner";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -135,7 +137,9 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
   }
 
   const allClients = initialClients ?? CLIENTS;
-  const [allTransactions, setAllTransactions] = useState<Transaction[]>(initialTransactions ?? TRANSACTIONS);
+  const [allTransactions, setAllTransactions] = useLiveRows(initialTransactions ?? [], {
+    table: "transacciones", columns: TX_COLS, order: { column: "fecha" }, limit: 100, map: rowToTransaction,
+  });
   const allFinance = initialFinance ?? FINANCE;
   const allByLine = initialByLine ?? BY_LINE;
 

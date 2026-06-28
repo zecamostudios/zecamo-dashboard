@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { ExternalLink, Target, Sparkles, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { OWNERS, STAGES, LINES } from "@/lib/mock-data";
+import { useLiveRows } from "@/lib/hooks/useLiveRows";
+import { PROSPECT_COLS, rowToProspect } from "@/lib/db/mappers";
 import type { FinancePoint, Prospect, StageId } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
@@ -21,7 +23,9 @@ interface AnaliticasViewProps {
 }
 
 export function AnaliticasView({ initialProspects }: AnaliticasViewProps) {
-  const allProspects = initialProspects ?? [];
+  const [allProspects] = useLiveRows(initialProspects ?? [], {
+    table: "prospectos", columns: PROSPECT_COLS, order: { column: "created_at" }, map: rowToProspect,
+  });
 
   const cumulativeStages = useMemo(() => {
     const active = STAGES.filter((s) => !EXCLUDED.includes(s.id));

@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { LINES } from "@/lib/mock-data";
 import { fmtN } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { useLiveRows } from "@/lib/hooks/useLiveRows";
+import { CLIENT_COLS, rowToClient } from "@/lib/db/mappers";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
 import { Chip } from "@/components/ui-zecamo/Chip";
@@ -23,7 +25,9 @@ interface ClientesViewProps {
 
 export function ClientesView({ initialClients }: ClientesViewProps) {
   const router = useRouter();
-  const [clients, setClients] = useState<Client[]>(initialClients ?? []);
+  const [clients, setClients] = useLiveRows(initialClients ?? [], {
+    table: "clientes", columns: CLIENT_COLS, order: { column: "mrr_usd" }, map: rowToClient,
+  });
   const [lineFilter, setLineFilter] = useState<ServiceLine | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ClientStatus | "all">("all");
   const [search, setSearch] = useState("");

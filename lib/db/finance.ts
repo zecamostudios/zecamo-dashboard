@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Transaction, FinancePoint, ByLine, OwnerId, ServiceLine } from "@/lib/types";
+import type { Transaction, FinancePoint, ByLine, ServiceLine } from "@/lib/types";
+import { TX_COLS, rowToTransaction } from "./mappers";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr",
@@ -7,42 +8,16 @@ const MONTH_LABELS: Record<string, string> = {
   "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic",
 };
 
-function rowToTransaction(row: Record<string, unknown>): Transaction {
-  const fecha = String(row.fecha ?? "").slice(0, 10);
-  const [, , dd] = fecha.split("-");
-  const monthKey = String(row.fecha ?? "").slice(5, 7);
-  const monthLabel = MONTH_LABELS[monthKey] ?? monthKey;
-  const d = `${dd} ${monthLabel}`;
-
-  const moneda = row.moneda === "ARS" ? "ARS" : "USD";
-  const claseRaw = String(row.clase_egreso ?? "");
-
-  return {
-    dbId: String(row.id ?? ""),
-    d,
-    fecha,
-    c: String(row.concepto ?? row.descripcion ?? ""),
-    line: (String(row.linea_servicio ?? "Ops")) as ServiceLine | "Ops",
-    a: Number(row.monto_usd ?? 0),
-    type: row.tipo === "egreso" ? "out" : "in",
-    owner: (String(row.owner_initials ?? "JS")) as OwnerId,
-    moneda,
-    montoOriginal: row.monto_original != null ? Number(row.monto_original) : Number(row.monto_usd ?? 0),
-    cotizacion: row.cotizacion != null ? Number(row.cotizacion) : undefined,
-    claseEgreso: claseRaw === "fijo" || claseRaw === "variable" ? claseRaw : undefined,
-  };
-}
-
 export async function getTransactions(limit = 20): Promise<Transaction[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transacciones")
-    .select("id, fecha, tipo, concepto, descripcion, monto_usd, monto_original, moneda, cotizacion, clase_egreso, linea_servicio, owner_initials")
+    .select(TX_COLS)
     .order("fecha", { ascending: false })
     .limit(limit);
 
   if (error || !data) return [];
-  return data.map((row) => rowToTransaction(row as Record<string, unknown>));
+  return data.map((row) => rowToTransaction(row as unknown as Record<string, unknown>));
 }
 
 export async function getFinanceSeries(): Promise<FinancePoint[]> {

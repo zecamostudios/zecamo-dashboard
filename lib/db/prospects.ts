@@ -1,28 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Prospect, OwnerId, ServiceLine, StageId } from "@/lib/types";
-
-function rowToProspect(row: Record<string, unknown>, idx: number): Prospect {
-  return {
-    id: idx + 1,
-    dbId: String(row.id ?? ""),
-    name: String(row.nombre_dueno ?? row.negocio ?? ""),
-    company: String(row.negocio ?? ""),
-    owner: (String(row.asignado_initials ?? "JS")) as OwnerId,
-    line: (String(row.linea_servicio ?? "Webs")) as ServiceLine,
-    stage: (String(row.etapa ?? "lead")) as StageId,
-    value: Number(row.valor_estimado ?? 0),
-    date: row.fecha_contacto
-      ? new Date(String(row.fecha_contacto)).toLocaleDateString("es-AR", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : String(row.created_at ?? "").slice(0, 10),
-    last: String(row.last_activity ?? "—"),
-    source: String(row.fuente ?? "Web"),
-    recall: Boolean(String(row.volver_a_llamar ?? "").trim()),
-  };
-}
+import type { Prospect, ServiceLine, StageId } from "@/lib/types";
+import { PROSPECT_COLS, rowToProspect } from "./mappers";
 
 export async function getProspects(): Promise<Prospect[]> {
   const supabase = await createClient();
@@ -31,9 +9,7 @@ export async function getProspects(): Promise<Prospect[]> {
   // silencio dejando el CRM vacío. Las iniciales del asignado caen al default.
   const { data, error } = await supabase
     .from("prospectos")
-    .select(
-      "id, negocio, nombre_dueno, fuente, etapa, linea_servicio, valor_estimado, fecha_contacto, created_at, volver_a_llamar, asignado_a",
-    )
+    .select(PROSPECT_COLS)
     .order("created_at", { ascending: false });
 
   if (error || !data) {
