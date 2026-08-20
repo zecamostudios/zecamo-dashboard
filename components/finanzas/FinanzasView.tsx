@@ -82,6 +82,7 @@ type TxForm = {
   moneda: Currency;
   cotizacion: string;
   claseEgreso: "fijo" | "variable";
+  lineas: string[];
   categoria: string;
   clienteId: string;
   esMensualidad: boolean;
@@ -90,7 +91,7 @@ type TxForm = {
 const MONTHS: Record<string, string> = { "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr", "05": "May", "06": "Jun", "07": "Jul", "08": "Ago", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic" };
 
 function emptyForm(rate: number): TxForm {
-  return { dbId: "", date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "", moneda: "USD", cotizacion: String(rate), claseEgreso: "variable", categoria: "Herramientas", clienteId: "", esMensualidad: false };
+  return { dbId: "", date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "", moneda: "USD", cotizacion: String(rate), claseEgreso: "variable", lineas: ["Webs"], categoria: "Herramientas", clienteId: "", esMensualidad: false };
 }
 
 interface FinanzasViewProps {
@@ -146,6 +147,10 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
       moneda: tx.moneda ?? "USD",
       cotizacion: String(tx.cotizacion ?? blueRate),
       claseEgreso: tx.claseEgreso ?? "variable",
+      lineas: (() => {
+        const ls = (tx.lineas && tx.lineas.length ? tx.lineas : [tx.line]).filter((l) => l !== "Ops");
+        return ls.length ? ls : ["Webs"];
+      })(),
       categoria: tx.categoria ?? "Herramientas",
       clienteId: tx.clienteId ?? "",
       esMensualidad: tx.esMensualidad ?? false,
@@ -465,7 +470,8 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
           const isEgreso = saved.type === "egreso";
           const claseEgreso = isEgreso ? saved.claseEgreso : null;
           const categoria = isEgreso ? saved.categoria : null;
-          const lineaServicio = isEgreso ? null : saved.line;
+          const lineas = isEgreso ? null : (saved.lineas.length ? saved.lineas : ["Webs"]);
+          const lineaServicio = isEgreso ? null : (lineas?.[0] ?? null);
           const clienteId = !isEgreso && saved.clienteId ? saved.clienteId : null;
           const esMensualidad = !isEgreso && saved.esMensualidad;
           const clienteNombre = clienteId ? allClients.find((c) => c.dbId === clienteId)?.name : undefined;
@@ -476,6 +482,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             fecha: today,
             c: saved.concept.trim(),
             line: (lineaServicio ?? "Ops") as Transaction["line"],
+            lineas: (lineas ?? undefined) as Transaction["lineas"],
             a: montoUsd,
             type: isEgreso ? "out" : "in",
             owner: saved.owner as Transaction["owner"],
@@ -500,6 +507,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             clase_egreso: claseEgreso,
             categoria,
             linea_servicio: lineaServicio,
+            lineas_servicio: lineas,
             owner_initials: saved.owner,
             cliente_id: clienteId,
             es_mensualidad: esMensualidad,
@@ -617,10 +625,36 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
               {txForm.type === "ingreso" && (
                 <>
                   <div>
-                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Línea de servicio</label>
-                    <select value={txForm.line} onChange={(e) => setTxForm((f) => ({ ...f, line: e.target.value }))} className={MODAL_INPUT}>
-                      {LINE_LABELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-                    </select>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">
+                      Servicios <span className="text-[var(--color-text-dim)] normal-case tracking-normal">(podés elegir varios)</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {LINE_LABELS.map((l) => {
+                        const active = txForm.lineas.includes(l.id);
+                        return (
+                          <button
+                            key={l.id}
+                            type="button"
+                            onClick={() =>
+                              setTxForm((f) => ({
+                                ...f,
+                                lineas: active ? f.lineas.filter((x) => x !== l.id) : [...f.lineas, l.id],
+                              }))
+                            }
+                            className={`px-3 py-1.5 rounded-full text-[12px] border cursor-pointer transition ${
+                              active
+                                ? "bg-[var(--color-primary-hover)] text-white border-[var(--color-primary-hover)]"
+                                : "bg-white/[0.03] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-2)]"
+                            }`}
+                          >
+                            {l.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {txForm.lineas.length === 0 && (
+                      <div className="text-[11px] text-[var(--color-warning)] mt-1.5">Elegí al menos un servicio</div>
+                    )}
                   </div>
                   <div>
                     <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Pago de cliente</label>

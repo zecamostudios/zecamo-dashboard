@@ -104,7 +104,7 @@ export function rowToTask(row: Record<string, unknown>, idx: number): Task {
 
 // ── Transacciones ─────────────────────────────────────────────
 export const TX_COLS =
-  "id, fecha, tipo, concepto, descripcion, categoria, monto_usd, monto_original, moneda, cotizacion, clase_egreso, linea_servicio, owner_initials, cliente_id, es_mensualidad, clientes(nombre)";
+  "id, fecha, tipo, concepto, descripcion, categoria, monto_usd, monto_original, moneda, cotizacion, clase_egreso, linea_servicio, lineas_servicio, owner_initials, cliente_id, es_mensualidad, clientes(nombre)";
 
 export function rowToTransaction(row: Record<string, unknown>): Transaction {
   const fecha = String(row.fecha ?? "").slice(0, 10);
@@ -125,6 +125,11 @@ export function rowToTransaction(row: Record<string, unknown>): Transaction {
     montoOriginal: row.monto_original != null ? Number(row.monto_original) : Number(row.monto_usd ?? 0),
     cotizacion: row.cotizacion != null ? Number(row.cotizacion) : undefined,
     claseEgreso: claseRaw === "fijo" || claseRaw === "variable" ? claseRaw : undefined,
+    lineas: Array.isArray(row.lineas_servicio)
+      ? (row.lineas_servicio as string[]).map((l) => l as ServiceLine | "Ops")
+      : row.linea_servicio != null
+        ? [String(row.linea_servicio) as ServiceLine | "Ops"]
+        : undefined,
     categoria: row.categoria != null ? String(row.categoria) : undefined,
     clienteId: row.cliente_id != null ? String(row.cliente_id) : undefined,
     clienteNombre: cli?.nombre != null ? String(cli.nombre) : undefined,

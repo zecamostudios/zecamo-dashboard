@@ -41,11 +41,18 @@ export function TransactionRow({ tx, format, onEdit }: TransactionRowProps) {
       </td>
       <td className="py-[10px]">
         {isIn ? (
-          tx.line === "Ops" ? (
-            <span className="text-[11.5px] text-[var(--color-text-muted)]">—</span>
-          ) : (
-            <Pill variant={tx.line}>{tx.line}</Pill>
-          )
+          (() => {
+            const lineas = (tx.lineas && tx.lineas.length ? tx.lineas : [tx.line]).filter((l) => l !== "Ops");
+            return lineas.length ? (
+              <div className="flex flex-wrap gap-1">
+                {lineas.map((l, i) => (
+                  <Pill key={i} variant={l}>{l}</Pill>
+                ))}
+              </div>
+            ) : (
+              <span className="text-[11.5px] text-[var(--color-text-muted)]">—</span>
+            );
+          })()
         ) : (
           <span className="text-[11.5px] text-[var(--color-text-muted)]">{tx.categoria ?? "—"}</span>
         )}

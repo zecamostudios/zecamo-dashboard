@@ -139,6 +139,7 @@ export interface Transaction {
   montoOriginal?: number; // monto tal como se ingresó (en `moneda`)
   cotizacion?: number; // ARS por USD usada al convertir (solo si moneda === "ARS")
   claseEgreso?: ClaseEgreso; // fijo o variable (solo egresos)
+  lineas?: (ServiceLine | "Ops")[]; // servicios del ingreso (puede ser más de uno)
   categoria?: string; // categoría de gasto (solo egresos)
   clienteId?: string; // cliente que paga (solo ingresos)
   clienteNombre?: string; // nombre resuelto del cliente (solo ingresos)

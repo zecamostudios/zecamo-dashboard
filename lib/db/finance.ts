@@ -65,7 +65,7 @@ export async function getByLine(): Promise<ByLine[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transacciones")
-    .select("linea_servicio, monto_usd, tipo")
+    .select("linea_servicio, lineas_servicio, monto_usd, tipo")
     .eq("tipo", "ingreso");
 
   if (error || !data) return [];
@@ -73,11 +73,18 @@ export async function getByLine(): Promise<ByLine[]> {
   const totals = new Map<string, number>();
   let grandTotal = 0;
   for (const row of data) {
-    const line = String(row.linea_servicio ?? "Ops");
-    if (line === "Ops") continue;
+    // Si el ingreso cubre varios servicios, repartimos el monto en partes iguales
+    const raw = Array.isArray(row.lineas_servicio) && row.lineas_servicio.length
+      ? (row.lineas_servicio as string[])
+      : [String(row.linea_servicio ?? "Ops")];
+    const lines = raw.filter((l) => l && l !== "Ops");
+    if (lines.length === 0) continue;
     const v = Number(row.monto_usd ?? 0);
-    totals.set(line, (totals.get(line) ?? 0) + v);
-    grandTotal += v;
+    const share = v / lines.length;
+    for (const line of lines) {
+      totals.set(line, (totals.get(line) ?? 0) + share);
+      grandTotal += share;
+    }
   }
 
   return Array.from(totals.entries())
