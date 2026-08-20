@@ -5,15 +5,19 @@ import { getActivityLog } from "@/lib/db/activity";
 import { getProjects } from "@/lib/db/projects";
 import { getTasks } from "@/lib/db/tasks";
 import { getProspects } from "@/lib/db/prospects";
+import { getByLine } from "@/lib/db/finance";
+import { getIngresosObjetivo } from "@/lib/db/config";
 
 export default async function HomePage() {
-  const [stats, meetings, activity, projects, tasks, prospects] = await Promise.all([
+  const [stats, meetings, activity, projects, tasks, prospects, byLine, monthTarget] = await Promise.all([
     getDashboardStats(),
     getMeetings(),
     getActivityLog(5),
     getProjects(),
     getTasks(),
     getProspects(),
+    getByLine(),
+    getIngresosObjetivo(),
   ]);
 
   return (
@@ -24,6 +28,8 @@ export default async function HomePage() {
       projects={projects}
       tasks={tasks}
       prospects={prospects}
+      byLine={byLine}
+      monthTarget={monthTarget}
     />
   );
 }

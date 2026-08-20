@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { Plus, Inbox, Send, Calendar, X } from "lucide-react";
 import { toast } from "sonner";
-import { OWNERS, OUTBOUND_MESSAGES, TEMPLATES } from "@/lib/mock-data";
+import { OWNERS } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 import type { OutboundMessage, OutboundStatus, OwnerId, Template } from "@/lib/types";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
@@ -29,8 +29,8 @@ export function OutboundView({ initialMessages, initialTemplates }: OutboundView
   const [showMsgModal, setShowMsgModal] = useState(false);
   const [msgForm, setMsgForm] = useState({ prospect: "", platform: "linkedin", message: "" });
 
-  const [allMessages, setAllMessages] = useState<OutboundMessage[]>(initialMessages ?? OUTBOUND_MESSAGES);
-  const allTemplates = initialTemplates ?? TEMPLATES;
+  const [allMessages, setAllMessages] = useState<OutboundMessage[]>(initialMessages ?? []);
+  const allTemplates = initialTemplates ?? [];
 
   const filtered = allMessages.filter(
     (m) =>
@@ -60,6 +60,8 @@ export function OutboundView({ initialMessages, initialTemplates }: OutboundView
   const responded = allMessages.filter((m) => m.status === "respondio" || m.status === "agendado").length;
   const booked = allMessages.filter((m) => m.status === "agendado").length;
   const noResp = allMessages.filter((m) => m.status === "no_resp").length;
+  const ratio = (n: number) => (total > 0 ? n / total : 0);
+  const pctLabel = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
   return (
     <>
@@ -81,29 +83,29 @@ export function OutboundView({ initialMessages, initialTemplates }: OutboundView
 
       {/* KPIs funnel */}
       <div className="grid grid-cols-4 gap-[14px] mb-[18px] max-[1100px]:grid-cols-2 max-[640px]:grid-cols-1">
-        <FunnelKpi label="Enviados" value={total} Icon={FUNNEL_ICONS.Send} pct={1} sub="total" />
+        <FunnelKpi label="Enviados" value={total} Icon={FUNNEL_ICONS.Send} pct={total > 0 ? 1 : 0} sub="total" />
         <FunnelKpi
           label="Respondió"
           value={responded}
           Icon={FUNNEL_ICONS.Inbox}
-          pct={responded / total}
-          sub={`${Math.round((responded / total) * 100)}% reply rate`}
+          pct={ratio(responded)}
+          sub={`${pctLabel(responded)}% reply rate`}
           highlight
         />
         <FunnelKpi
           label="Agendó call"
           value={booked}
           Icon={FUNNEL_ICONS.Calendar}
-          pct={booked / total}
-          sub={`${Math.round((booked / total) * 100)}% book rate`}
+          pct={ratio(booked)}
+          sub={`${pctLabel(booked)}% book rate`}
           highlight
         />
         <FunnelKpi
           label="No respondió"
           value={noResp}
           Icon={FUNNEL_ICONS.X}
-          pct={noResp / total}
-          sub={`${Math.round((noResp / total) * 100)}% del total`}
+          pct={ratio(noResp)}
+          sub={`${pctLabel(noResp)}% del total`}
           negative
         />
       </div>

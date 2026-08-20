@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Sparkles, Plus, DollarSign, Briefcase, TrendingUp, Target } from "lucide-react";
 import { toast } from "sonner";
-import { CLIENTS, FINANCE, PROSPECTS } from "@/lib/mock-data";
 import { fmtN, fmtUsd } from "@/lib/utils";
 import { PageHead } from "@/components/ui-zecamo/PageHead";
 import { Button } from "@/components/ui-zecamo/Button";
@@ -21,9 +20,7 @@ import { ProjectsInProgress } from "@/components/dashboard/ProjectsInProgress";
 import { MonthGoal } from "@/components/dashboard/MonthGoal";
 import { LineDistribution } from "@/components/dashboard/LineDistribution";
 import type { DashboardStats } from "@/lib/db/dashboard";
-import type { Meeting, ActivityItem, Project, Task, Prospect } from "@/lib/types";
-
-const MONTH_TARGET = 15000;
+import type { Meeting, ActivityItem, Project, Task, Prospect, ByLine } from "@/lib/types";
 
 interface DashboardHomeProps {
   stats?: DashboardStats;
@@ -32,25 +29,28 @@ interface DashboardHomeProps {
   projects?: Project[];
   tasks?: Task[];
   prospects?: Prospect[];
+  byLine?: ByLine[];
+  monthTarget?: number;
 }
 
-export function DashboardHome({ stats, meetings, activity, projects, tasks, prospects }: DashboardHomeProps) {
-  const activeClients = stats?.activeClients ?? CLIENTS.filter((c) => c.status === "active").length;
-  const totalMrr = stats?.totalMrr ?? CLIENTS.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
-  const allFinance = stats?.financeData ?? FINANCE;
+export function DashboardHome({ stats, meetings, activity, projects, tasks, prospects, byLine, monthTarget }: DashboardHomeProps) {
+  const MONTH_TARGET = monthTarget ?? 15000;
+  const activeClients = stats?.activeClients ?? 0;
+  const totalMrr = stats?.totalMrr ?? 0;
+  const allFinance = stats?.financeData ?? [];
   const totalIn = allFinance.reduce((s, d) => s + d.in, 0);
   const totalOut = allFinance.reduce((s, d) => s + d.out, 0);
   const netto = totalIn - totalOut;
   const monthRevenue = stats?.monthRevenue ?? (allFinance.length > 0 ? allFinance[allFinance.length - 1].in : 0);
 
-  const inFunnel = stats?.inFunnel ?? PROSPECTS.filter(
-    (p) => !["venta", "noresp", "noventa", "seguim"].includes(p.stage),
-  ).length;
-  const inFunnelValue = stats?.inFunnelValue ?? PROSPECTS.filter(
-    (p) => !["venta", "noresp", "noventa", "seguim"].includes(p.stage),
-  ).reduce((s, p) => s + p.value, 0);
+  const inFunnel = stats?.inFunnel ?? 0;
+  const inFunnelValue = stats?.inFunnelValue ?? 0;
 
-  const allProspects = prospects ?? PROSPECTS;
+  const allProspects = prospects ?? [];
+
+  // Mes actual en vivo (ej. "Agosto 2026")
+  const now = new Date();
+  const monthLabel = `${now.toLocaleDateString("es-AR", { month: "long" }).replace(/^\w/, (c) => c.toUpperCase())} ${now.getFullYear()}`;
 
   return (
     <>
@@ -65,9 +65,9 @@ export function DashboardHome({ stats, meetings, activity, projects, tasks, pros
           <>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[rgba(43,91,255,0.10)] border border-[rgba(43,91,255,0.25)] text-[var(--color-primary-hover)] text-[11.5px] font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary-hover)] shadow-[0_0_8px_var(--color-glow)]" />
-              Mayo 2026 · en vivo
+              {monthLabel} · en vivo
             </div>
-            <Button onClick={() => toast.info(`MRR $${fmtN(totalMrr)} · ${activeClients} clientes activos · Pipeline ${inFunnel} prospectos · Margen ${Math.round(((totalIn - totalOut) / (totalIn || 1)) * 100)}%`, { duration: 6000, description: "Resumen generado por IA — mayo 2026" })}>
+            <Button onClick={() => toast.info(`MRR $${fmtN(totalMrr)} · ${activeClients} clientes activos · Pipeline ${inFunnel} prospectos · Margen ${Math.round(((totalIn - totalOut) / (totalIn || 1)) * 100)}%`, { duration: 6000, description: `Resumen · ${monthLabel}` })}>
               <Sparkles size={14} />Resumen IA
             </Button>
             <Link href="/crm">
@@ -109,7 +109,6 @@ export function DashboardHome({ stats, meetings, activity, projects, tasks, pros
           value={inFunnel}
           delta={{ value: fmtUsd(inFunnelValue), direction: "flat" }}
           sub="potencial"
-          spark={<Sparkline data={[8, 10, 11, 12, 14, 15, inFunnel]} color="#F0A82A" height={32} />}
         />
       </StatGrid>
 
@@ -157,8 +156,8 @@ export function DashboardHome({ stats, meetings, activity, projects, tasks, pros
       <div className="grid grid-cols-12 gap-[18px]">
         <div className="col-span-8 max-[1100px]:col-span-12"><ProjectsInProgress projects={projects} /></div>
         <div className="col-span-4 max-[1100px]:col-span-12 flex flex-col gap-[18px]">
-          <MonthGoal monthRevenue={monthRevenue} />
-          <LineDistribution />
+          <MonthGoal monthRevenue={monthRevenue} monthTarget={MONTH_TARGET} />
+          <LineDistribution byLine={byLine} />
         </div>
       </div>
     </>

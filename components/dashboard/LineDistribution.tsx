@@ -1,5 +1,4 @@
 import { Sparkles } from "lucide-react";
-import { BY_LINE } from "@/lib/mock-data";
 import { Pill } from "@/components/ui-zecamo/Pill";
 import { Card, CardHead, CardTitle } from "@/components/ui-zecamo/Card";
 import { fmtN } from "@/lib/utils";
@@ -17,12 +16,15 @@ interface LineDistributionProps {
 }
 
 export function LineDistribution({ byLine }: LineDistributionProps) {
-  const items = byLine ?? BY_LINE;
+  const items = byLine ?? [];
   return (
     <Card>
       <CardHead>
         <CardTitle big icon={<Sparkles size={14} />}>Por línea de servicio</CardTitle>
       </CardHead>
+      {items.length === 0 && (
+        <p className="text-[12.5px] text-[var(--color-text-muted)] py-2">Sin ingresos por línea todavía.</p>
+      )}
       {items.map((it) => (
         <div key={it.id} className="mb-3 last:mb-0">
           <div className="flex justify-between text-[12.5px] mb-1.5">

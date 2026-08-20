@@ -19,3 +19,7 @@ export async function getConfig<T>(clave: string, fallback: T): Promise<T> {
 export async function getMrrObjetivo(): Promise<number> {
   return getConfig<number>("mrr_objetivo", 8500);
 }
+
+export async function getIngresosObjetivo(): Promise<number> {
+  return getConfig<number>("ingresos_objetivo", 15000);
+}

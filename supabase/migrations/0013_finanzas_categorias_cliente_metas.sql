@@ -21,9 +21,11 @@ create table if not exists public.app_config (
   updated_at  timestamptz not null default now()
 );
 
--- Valor por defecto del objetivo de MRR (editable desde el dashboard)
+-- Valores por defecto de los objetivos (editables desde el dashboard)
 insert into public.app_config (clave, valor)
-values ('mrr_objetivo', '8500'::jsonb)
+values
+  ('mrr_objetivo', '8500'::jsonb),
+  ('ingresos_objetivo', '15000'::jsonb)
 on conflict (clave) do nothing;
 
 alter table public.app_config enable row level security;
