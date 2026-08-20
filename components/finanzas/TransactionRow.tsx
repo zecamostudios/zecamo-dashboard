@@ -32,12 +32,22 @@ export function TransactionRow({ tx, format, onEdit }: TransactionRowProps) {
             <Pencil size={11} className="text-[var(--color-text-dim)] opacity-0 group-hover:opacity-100 transition" />
           )}
         </div>
+        {isIn && tx.clienteNombre && (
+          <div className="text-[10.5px] text-[var(--color-text-muted)] mt-0.5 flex items-center gap-1">
+            {tx.clienteNombre}
+            {tx.esMensualidad && <span className="text-[var(--color-primary-hover)]">· mensualidad</span>}
+          </div>
+        )}
       </td>
       <td className="py-[10px]">
-        {tx.line === "Ops" ? (
-          <span className="text-[11.5px] text-[var(--color-text-muted)]">—</span>
+        {isIn ? (
+          tx.line === "Ops" ? (
+            <span className="text-[11.5px] text-[var(--color-text-muted)]">—</span>
+          ) : (
+            <Pill variant={tx.line}>{tx.line}</Pill>
+          )
         ) : (
-          <Pill variant={tx.line}>{tx.line}</Pill>
+          <span className="text-[11.5px] text-[var(--color-text-muted)]">{tx.categoria ?? "—"}</span>
         )}
       </td>
       <td className="py-[10px]">

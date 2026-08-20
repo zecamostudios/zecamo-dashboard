@@ -396,6 +396,12 @@ export interface Database {
           linea_servicio: string | null;
           owner_initials: string | null;
           concepto: string | null;
+          // Finanzas pesos/editable (0003) + cliente/mensualidad (0013)
+          moneda: string;
+          monto_original: number | null;
+          cotizacion: number | null;
+          clase_egreso: string | null;
+          es_mensualidad: boolean;
           created_at: string;
         };
         Insert: {
@@ -411,6 +417,11 @@ export interface Database {
           linea_servicio?: string | null;
           owner_initials?: string | null;
           concepto?: string | null;
+          moneda?: string;
+          monto_original?: number | null;
+          cotizacion?: number | null;
+          clase_egreso?: string | null;
+          es_mensualidad?: boolean;
         };
         Update: {
           fecha?: string;
@@ -423,6 +434,29 @@ export interface Database {
           concepto?: string | null;
           linea_servicio?: string | null;
           owner_initials?: string | null;
+          moneda?: string;
+          monto_original?: number | null;
+          cotizacion?: number | null;
+          clase_egreso?: string | null;
+          es_mensualidad?: boolean;
+        };
+        Relationships: [];
+      };
+      app_config: {
+        Row: {
+          clave: string;
+          valor: unknown;
+          updated_at: string;
+        };
+        Insert: {
+          clave: string;
+          valor: unknown;
+          updated_at?: string;
+        };
+        Update: {
+          clave?: string;
+          valor?: unknown;
+          updated_at?: string;
         };
         Relationships: [];
       };

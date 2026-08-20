@@ -15,7 +15,6 @@ import {
   ArrowRight,
   Clock,
 } from "lucide-react";
-import { CLIENTS, FINANCE, BY_LINE } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 import { useLiveRows } from "@/lib/hooks/useLiveRows";
 import { TX_COLS, rowToTransaction } from "@/lib/db/mappers";
@@ -61,6 +60,17 @@ const LINE_LABELS: { id: ServiceLine; label: string }[] = [
   { id: "Diagnóstico", label: "Diagnóstico (Express / Premium)" },
 ];
 
+// Categorías de gasto para egresos (la línea de servicio no aplica a egresos)
+const CATEGORIAS_EGRESO = [
+  "Herramientas",
+  "Sueldos",
+  "Publicidad",
+  "Subcontratación",
+  "Impuestos",
+  "Infraestructura",
+  "Otros",
+] as const;
+
 type TxForm = {
   dbId: string;
   date: string;
@@ -72,12 +82,15 @@ type TxForm = {
   moneda: Currency;
   cotizacion: string;
   claseEgreso: "fijo" | "variable";
+  categoria: string;
+  clienteId: string;
+  esMensualidad: boolean;
 };
 
 const MONTHS: Record<string, string> = { "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr", "05": "May", "06": "Jun", "07": "Jul", "08": "Ago", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic" };
 
 function emptyForm(rate: number): TxForm {
-  return { dbId: "", date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "", moneda: "USD", cotizacion: String(rate), claseEgreso: "variable" };
+  return { dbId: "", date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "", moneda: "USD", cotizacion: String(rate), claseEgreso: "variable", categoria: "Herramientas", clienteId: "", esMensualidad: false };
 }
 
 interface FinanzasViewProps {
@@ -85,9 +98,10 @@ interface FinanzasViewProps {
   initialTransactions?: Transaction[];
   initialFinance?: FinancePoint[];
   initialByLine?: ByLine[];
+  initialMrrObjetivo?: number;
 }
 
-export function FinanzasView({ initialClients, initialTransactions, initialFinance, initialByLine }: FinanzasViewProps) {
+export function FinanzasView({ initialClients, initialTransactions, initialFinance, initialByLine, initialMrrObjetivo }: FinanzasViewProps) {
   const [currency, setCurrency] = useState<Currency>("USD");
   const [range, setRange] = useState<Range>("6M");
   const [showAll, setShowAll] = useState(false);
@@ -125,23 +139,40 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
       dbId: tx.dbId ?? "",
       date: tx.fecha ?? "",
       concept: tx.c,
-      line: tx.line,
+      line: tx.line === "Ops" ? "Webs" : tx.line,
       owner: tx.owner,
       type: tx.type === "out" ? "egreso" : "ingreso",
       amount: String(tx.montoOriginal ?? tx.a),
       moneda: tx.moneda ?? "USD",
       cotizacion: String(tx.cotizacion ?? blueRate),
       claseEgreso: tx.claseEgreso ?? "variable",
+      categoria: tx.categoria ?? "Herramientas",
+      clienteId: tx.clienteId ?? "",
+      esMensualidad: tx.esMensualidad ?? false,
     });
     setShowTxModal(true);
   }
 
-  const allClients = initialClients ?? CLIENTS;
+  const allClients = initialClients ?? [];
   const [allTransactions, setAllTransactions] = useLiveRows(initialTransactions ?? [], {
     table: "transacciones", columns: TX_COLS, order: { column: "fecha" }, limit: 100, map: rowToTransaction,
   });
-  const allFinance = initialFinance ?? FINANCE;
-  const allByLine = initialByLine ?? BY_LINE;
+  const allFinance = initialFinance ?? [];
+  const allByLine = initialByLine ?? [];
+
+  // Objetivo de MRR editable (persistido en app_config)
+  const [mrrObjetivo, setMrrObjetivo] = useState<number>(initialMrrObjetivo ?? 8500);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState<string>(String(initialMrrObjetivo ?? 8500));
+
+  const saveGoal = async () => {
+    const val = Math.max(0, Math.round(Number(goalInput) || 0));
+    setMrrObjetivo(val);
+    setEditingGoal(false);
+    const supabase = createClient();
+    const { error } = await supabase.from("app_config").update({ valor: val }).eq("clave", "mrr_objetivo");
+    if (error) toast.error("No se pudo guardar el objetivo"); else toast.success("Objetivo de MRR actualizado");
+  };
 
   const totalIn = useMemo(() => allFinance.reduce((s, d) => s + d.in, 0), [allFinance]);
   const totalOut = useMemo(() => allFinance.reduce((s, d) => s + d.out, 0), [allFinance]);
@@ -149,16 +180,45 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
   const margin = totalIn > 0 ? Math.round((netto / totalIn) * 100) : 0;
 
   const currentMrr = allClients.filter((c) => c.status === "active").reduce((s, c) => s + c.mrr, 0);
-  const targetMrr = 8500;
-  const growth = 16.7;
+  const targetMrr = mrrObjetivo;
 
-  const upcoming: { c: string; d: string; a: number }[] = [
-    { c: "Salud Norte", d: "22 Jun", a: 1500 },
-    { c: "Café Atlas", d: "22 Jun", a: 1200 },
-    { c: "Inmobiliaria Casas", d: "22 Jun", a: 1800 },
-    { c: "Estudio Mendoza", d: "22 Jun", a: 850 },
-    { c: "Clínica Vet. Sol", d: "22 Jun", a: 1100 },
-  ];
+  // Crecimiento real: último mes de ingresos vs el anterior
+  const growth = useMemo(() => {
+    if (allFinance.length < 2) return 0;
+    const last = allFinance[allFinance.length - 1].in;
+    const prev = allFinance[allFinance.length - 2].in;
+    if (prev <= 0) return 0;
+    return Math.round(((last - prev) / prev) * 1000) / 10;
+  }, [allFinance]);
+
+  // Deltas reales mes contra mes para las tarjetas de ingresos/egresos
+  const inDelta = useMemo(() => {
+    if (allFinance.length < 2) return null;
+    const a = allFinance[allFinance.length - 1].in, b = allFinance[allFinance.length - 2].in;
+    return b > 0 ? Math.round(((a - b) / b) * 100) : null;
+  }, [allFinance]);
+  const outDelta = useMemo(() => {
+    if (allFinance.length < 2) return null;
+    const a = allFinance[allFinance.length - 1].out, b = allFinance[allFinance.length - 2].out;
+    return b > 0 ? Math.round(((a - b) / b) * 100) : null;
+  }, [allFinance]);
+
+  // Sparkline real del MRR (ingresos mensuales), con el MRR actual al final
+  const mrrSpark = useMemo(() => {
+    const s = allFinance.map((f) => f.in);
+    return s.length ? [...s, currentMrr] : [currentMrr];
+  }, [allFinance, currentMrr]);
+
+  // Próximos cobros reales: clientes activos con mensualidad (mrr > 0)
+  const upcoming = useMemo(
+    () =>
+      allClients
+        .filter((c) => c.status === "active" && c.mrr > 0)
+        .sort((a, b) => b.mrr - a.mrr)
+        .map((c) => ({ c: c.name, d: "Mensual", a: c.mrr })),
+    [allClients],
+  );
+  const upcomingTotal = useMemo(() => upcoming.reduce((s, p) => s + p.a, 0), [upcoming]);
 
   void range; // used for UI filter — data filtering TODO: Supabase
 
@@ -198,23 +258,43 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
           symbol={symbol}
           value={conv(currentMrr)}
           growth={growth}
-          spark={[2400, 2900, 3200, 3600, 4100, 4400, currentMrr]}
+          spark={mrrSpark}
         />
         <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] font-medium">MRR objetivo M3</div>
-            <div className="w-7 h-7 rounded-lg bg-white/[0.04] grid place-items-center text-[var(--color-text-muted)]"><Target size={15} /></div>
+            <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] font-medium">MRR objetivo</div>
+            <button
+              onClick={() => { setGoalInput(String(targetMrr)); setEditingGoal((v) => !v); }}
+              className="w-7 h-7 rounded-lg bg-white/[0.04] grid place-items-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-0 cursor-pointer transition"
+              title="Editar objetivo"
+            >
+              <Target size={15} />
+            </button>
           </div>
-          <div className="font-[family-name:var(--font-display)] text-[28px] font-medium leading-none tracking-tight">
-            {symbol} {fmtN(conv(targetMrr))}
-          </div>
+          {editingGoal ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                autoFocus
+                value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveGoal(); if (e.key === "Escape") setEditingGoal(false); }}
+                className="w-full rounded-lg bg-white/[0.04] border border-[var(--color-border)] text-[20px] font-medium px-2 py-1 text-[var(--color-text)] outline-none focus:border-[var(--color-primary-hover)]"
+              />
+              <button onClick={saveGoal} className="text-[12px] px-2.5 py-1.5 rounded-lg bg-[var(--color-primary-hover)] text-white border-0 cursor-pointer">OK</button>
+            </div>
+          ) : (
+            <div className="font-[family-name:var(--font-display)] text-[28px] font-medium leading-none tracking-tight">
+              {symbol} {fmtN(conv(targetMrr))}
+            </div>
+          )}
           <div className="flex items-center gap-2 mt-3 text-[11.5px]">
-            <span className="font-mono text-[var(--color-text-muted)]">{Math.round((currentMrr / targetMrr) * 100)}% del objetivo</span>
-            <span className="text-[var(--color-text-dim)]">en 3 meses</span>
+            <span className="font-mono text-[var(--color-text-muted)]">{targetMrr > 0 ? Math.round((currentMrr / targetMrr) * 100) : 0}% del objetivo</span>
+            <span className="text-[var(--color-text-dim)]">MRR actual {symbol} {fmtN(conv(currentMrr))}</span>
           </div>
           <div className="bg-white/[0.05] rounded-full overflow-hidden h-1.5 mt-[6px]">
             <div className="h-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] shadow-[0_0_6px_var(--color-glow)]"
-              style={{ width: `${(currentMrr / targetMrr) * 100}%` }} />
+              style={{ width: `${targetMrr > 0 ? Math.min(100, (currentMrr / targetMrr) * 100) : 0}%` }} />
           </div>
         </div>
         <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
@@ -226,8 +306,14 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             <span className="text-[var(--color-text-muted)] text-[18px] mr-0.5">{symbol}</span>{fmtN(conv(totalIn))}
           </div>
           <div className="flex items-center gap-2 mt-3 text-[11.5px]">
-            <span className="font-mono text-[var(--color-success)] inline-flex items-center gap-0.5"><ArrowUp size={10} />+24%</span>
-            <span className="text-[var(--color-text-dim)]">vs período anterior</span>
+            {inDelta != null ? (
+              <span className={`font-mono inline-flex items-center gap-0.5 ${inDelta >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+                {inDelta >= 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}{inDelta >= 0 ? "+" : ""}{inDelta}%
+              </span>
+            ) : (
+              <span className="font-mono text-[var(--color-text-dim)]">—</span>
+            )}
+            <span className="text-[var(--color-text-dim)]">vs mes anterior</span>
           </div>
         </div>
         <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
@@ -239,8 +325,14 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             <span className="text-[var(--color-text-muted)] text-[18px] mr-0.5">{symbol}</span>{fmtN(conv(totalOut))}
           </div>
           <div className="flex items-center gap-2 mt-3 text-[11.5px]">
-            <span className="font-mono text-[var(--color-success)] inline-flex items-center gap-0.5"><ArrowUp size={10} />+8%</span>
-            <span className="text-[var(--color-text-dim)]">controlado</span>
+            {outDelta != null ? (
+              <span className={`font-mono inline-flex items-center gap-0.5 ${outDelta <= 0 ? "text-[var(--color-success)]" : "text-[var(--color-text-muted)]"}`}>
+                {outDelta >= 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}{outDelta >= 0 ? "+" : ""}{outDelta}%
+              </span>
+            ) : (
+              <span className="font-mono text-[var(--color-text-dim)]">—</span>
+            )}
+            <span className="text-[var(--color-text-dim)]">vs mes anterior</span>
           </div>
         </div>
       </div>
@@ -313,33 +405,44 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             <CardHead>
               <CardTitle big icon={<Clock size={16} />}>Próximos cobros</CardTitle>
             </CardHead>
-            {upcoming.map((p, i) => (
-              <div key={i} className="flex justify-between items-center py-[9px] border-b border-[var(--color-border)] last:border-b-0">
-                <div>
-                  <div className="text-[13px]">{p.c}</div>
-                  <div className="font-mono text-[10.5px] text-[var(--color-text-muted)]">{p.d}</div>
+            {upcoming.length === 0 ? (
+              <p className="text-[12.5px] text-[var(--color-text-muted)] py-2">
+                No hay mensualidades activas. Marcá clientes con MRR &gt; 0 para verlos acá.
+              </p>
+            ) : (
+              <>
+                {upcoming.map((p, i) => (
+                  <div key={i} className="flex justify-between items-center py-[9px] border-b border-[var(--color-border)] last:border-b-0">
+                    <div>
+                      <div className="text-[13px]">{p.c}</div>
+                      <div className="font-mono text-[10.5px] text-[var(--color-text-muted)]">{p.d}</div>
+                    </div>
+                    <span className="font-mono text-[12px] font-semibold text-[var(--color-success)]">+{fmt(p.a)}</span>
+                  </div>
+                ))}
+                <div className="pt-[10px] flex justify-between text-[12.5px] font-semibold">
+                  <span>Total esperado / mes</span>
+                  <span className="font-mono text-[var(--color-success)]">{fmt(upcomingTotal)}</span>
                 </div>
-                <span className="font-mono text-[12px] font-semibold text-[var(--color-success)]">+{fmt(p.a)}</span>
-              </div>
-            ))}
-            <div className="pt-[10px] flex justify-between text-[12.5px] font-semibold">
-              <span>Total esperado</span>
-              <span className="font-mono text-[var(--color-success)]">{fmt(6450)}</span>
-            </div>
+              </>
+            )}
           </Card>
 
           <Card glow>
             <CardHead>
               <CardTitle big icon={<Sparkles size={16} />}>
-                <span className="text-[var(--color-primary-hover)]">Insight</span>
+                <span className="text-[var(--color-primary-hover)]">Resumen</span>
               </CardTitle>
             </CardHead>
             <p className="text-[13px] text-[var(--color-text-muted)] leading-relaxed">
-              Si mantenés el crecimiento del {growth}% mensual, llegás al MRR objetivo en{" "}
-              <b className="text-[var(--color-primary-hover)]">~9 semanas</b>.
+              MRR actual <b className="text-[var(--color-text)]">{symbol} {fmtN(conv(currentMrr))}</b> ·
+              objetivo <b className="text-[var(--color-primary-hover)]">{symbol} {fmtN(conv(targetMrr))}</b>
+              {currentMrr < targetMrr
+                ? <> — faltan <b className="text-[var(--color-text)]">{symbol} {fmtN(conv(targetMrr - currentMrr))}</b>.</>
+                : <> — objetivo alcanzado ✅</>}
             </p>
             <div className="mt-3.5 px-3 py-2.5 bg-[rgba(34,197,139,0.08)] border border-[rgba(34,197,139,0.2)] rounded-[10px] text-[11.5px] text-[var(--color-text-muted)]">
-              <b className="text-[var(--color-success)]">Recomendación:</b> el costo Ops es 3.7% de ingresos. Hay margen para invertir en herramientas.
+              <b className="text-[var(--color-success)]">Margen neto:</b> {margin}% · Neto {fmt(netto)} en el período.
             </div>
           </Card>
         </div>
@@ -359,21 +462,31 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
           const [, , dd] = today.split("-");
           const dLabel = `${dd} ${MONTHS[today.slice(5, 7)] ?? ""}`;
           const montoUsd = saved.moneda === "ARS" ? (cot > 0 ? Math.round((montoOrig / cot) * 100) / 100 : 0) : montoOrig;
-          const claseEgreso = saved.type === "egreso" ? saved.claseEgreso : null;
+          const isEgreso = saved.type === "egreso";
+          const claseEgreso = isEgreso ? saved.claseEgreso : null;
+          const categoria = isEgreso ? saved.categoria : null;
+          const lineaServicio = isEgreso ? null : saved.line;
+          const clienteId = !isEgreso && saved.clienteId ? saved.clienteId : null;
+          const esMensualidad = !isEgreso && saved.esMensualidad;
+          const clienteNombre = clienteId ? allClients.find((c) => c.dbId === clienteId)?.name : undefined;
 
           const optimistic: Transaction = {
             dbId: saved.dbId || undefined,
             d: dLabel,
             fecha: today,
             c: saved.concept.trim(),
-            line: saved.line as Transaction["line"],
+            line: (lineaServicio ?? "Ops") as Transaction["line"],
             a: montoUsd,
-            type: saved.type === "egreso" ? "out" : "in",
+            type: isEgreso ? "out" : "in",
             owner: saved.owner as Transaction["owner"],
             moneda: saved.moneda,
             montoOriginal: montoOrig,
             cotizacion: saved.moneda === "ARS" ? cot : undefined,
             claseEgreso: claseEgreso ?? undefined,
+            categoria: categoria ?? undefined,
+            clienteId: clienteId ?? undefined,
+            clienteNombre,
+            esMensualidad,
           };
 
           const payload = {
@@ -385,8 +498,11 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             moneda: saved.moneda,
             cotizacion: saved.moneda === "ARS" ? cot : null,
             clase_egreso: claseEgreso,
-            linea_servicio: saved.line,
+            categoria,
+            linea_servicio: lineaServicio,
             owner_initials: saved.owner,
+            cliente_id: clienteId,
+            es_mensualidad: esMensualidad,
           };
 
           setShowTxModal(false);
@@ -449,12 +565,20 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
               </div>
 
               {txForm.type === "egreso" && (
-                <div>
-                  <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Egreso</label>
-                  <select value={txForm.claseEgreso} onChange={(e) => setTxForm((f) => ({ ...f, claseEgreso: e.target.value as TxForm["claseEgreso"] }))} className={MODAL_INPUT}>
-                    <option value="fijo">Fijo</option>
-                    <option value="variable">Variable</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Categoría</label>
+                    <select value={txForm.categoria} onChange={(e) => setTxForm((f) => ({ ...f, categoria: e.target.value }))} className={MODAL_INPUT}>
+                      {CATEGORIAS_EGRESO.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Tipo de gasto</label>
+                    <select value={txForm.claseEgreso} onChange={(e) => setTxForm((f) => ({ ...f, claseEgreso: e.target.value as TxForm["claseEgreso"] }))} className={MODAL_INPUT}>
+                      <option value="fijo">Fijo</option>
+                      <option value="variable">Variable</option>
+                    </select>
+                  </div>
                 </div>
               )}
 
@@ -490,12 +614,50 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
                 </>
               )}
 
-              <div>
-                <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Línea</label>
-                <select value={txForm.line} onChange={(e) => setTxForm((f) => ({ ...f, line: e.target.value }))} className={MODAL_INPUT}>
-                  {LINE_LABELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-                </select>
-              </div>
+              {txForm.type === "ingreso" && (
+                <>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Línea de servicio</label>
+                    <select value={txForm.line} onChange={(e) => setTxForm((f) => ({ ...f, line: e.target.value }))} className={MODAL_INPUT}>
+                      {LINE_LABELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Pago de cliente</label>
+                    <select
+                      value={txForm.clienteId}
+                      onChange={(e) => {
+                        const clienteId = e.target.value;
+                        const cli = allClients.find((c) => c.dbId === clienteId);
+                        setTxForm((f) => ({
+                          ...f,
+                          clienteId,
+                          // si aún no escribió concepto y eligió cliente, autocompletamos
+                          concept: f.concept.trim() || (cli ? `Mensualidad · ${cli.name}` : f.concept),
+                          esMensualidad: clienteId ? f.esMensualidad : false,
+                        }));
+                      }}
+                      className={MODAL_INPUT}
+                    >
+                      <option value="">— Sin cliente (ingreso suelto) —</option>
+                      {allClients.map((c) => (
+                        <option key={c.dbId} value={c.dbId}>{c.name}{c.mrr > 0 ? ` · ${c.mrr} USD/mes` : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {txForm.clienteId && (
+                    <label className="flex items-center gap-2 text-[12.5px] text-[var(--color-text-muted)] cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={txForm.esMensualidad}
+                        onChange={(e) => setTxForm((f) => ({ ...f, esMensualidad: e.target.checked }))}
+                        className="accent-[var(--color-primary-hover)] w-4 h-4"
+                      />
+                      Es la mensualidad recurrente de este cliente
+                    </label>
+                  )}
+                </>
+              )}
             </div>
             <div className="flex gap-2 mt-6">
               {isEditing && (

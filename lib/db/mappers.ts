@@ -104,13 +104,14 @@ export function rowToTask(row: Record<string, unknown>, idx: number): Task {
 
 // ── Transacciones ─────────────────────────────────────────────
 export const TX_COLS =
-  "id, fecha, tipo, concepto, descripcion, monto_usd, monto_original, moneda, cotizacion, clase_egreso, linea_servicio, owner_initials";
+  "id, fecha, tipo, concepto, descripcion, categoria, monto_usd, monto_original, moneda, cotizacion, clase_egreso, linea_servicio, owner_initials, cliente_id, es_mensualidad, clientes(nombre)";
 
 export function rowToTransaction(row: Record<string, unknown>): Transaction {
   const fecha = String(row.fecha ?? "").slice(0, 10);
   const dd = fecha.split("-")[2] ?? "";
   const monthKey = fecha.slice(5, 7);
   const claseRaw = String(row.clase_egreso ?? "");
+  const cli = row.clientes as { nombre?: string } | null;
   return {
     dbId: String(row.id ?? ""),
     d: `${dd} ${MONTH_LABELS[monthKey] ?? monthKey}`,
@@ -124,5 +125,9 @@ export function rowToTransaction(row: Record<string, unknown>): Transaction {
     montoOriginal: row.monto_original != null ? Number(row.monto_original) : Number(row.monto_usd ?? 0),
     cotizacion: row.cotizacion != null ? Number(row.cotizacion) : undefined,
     claseEgreso: claseRaw === "fijo" || claseRaw === "variable" ? claseRaw : undefined,
+    categoria: row.categoria != null ? String(row.categoria) : undefined,
+    clienteId: row.cliente_id != null ? String(row.cliente_id) : undefined,
+    clienteNombre: cli?.nombre != null ? String(cli.nombre) : undefined,
+    esMensualidad: Boolean(row.es_mensualidad),
   };
 }
