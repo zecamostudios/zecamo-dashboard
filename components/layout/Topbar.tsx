@@ -17,11 +17,6 @@ const SECTION_NAMES: Record<string, string> = {
   "/analytics": "Analíticas",
   "/manual": "Manual",
   "/configuracion": "Configuración",
-  "/content/ai-studio": "AI Studio",
-  "/content/queue": "Queue",
-  "/content/planner": "Planner",
-  "/content/assets": "Assets",
-  "/content/automations": "Automations",
 };
 
 interface TopbarProps {

@@ -15,11 +15,6 @@ import {
   BarChart3,
   BookOpen,
   ChevronUp,
-  Sparkles,
-  CalendarDays,
-  Images,
-  Brain,
-  Cpu,
   Bot,
   Activity,
   X,
@@ -77,16 +72,6 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
         { href: "/outbound/cola", label: "Prospección", icon: Target },
         { href: "/tareas", label: "Tareas", icon: CheckSquare, badge: tasksCount },
         { href: "/analytics", label: "Analíticas", icon: BarChart3 },
-      ],
-    },
-    {
-      label: "Content OS",
-      items: [
-        { href: "/content/ai-studio",   label: "AI Studio",   icon: Sparkles,  dot: true },
-        { href: "/content/planner",      label: "Planner",      icon: CalendarDays },
-        { href: "/content/assets",       label: "Assets",       icon: Images },
-        { href: "/content/brand-memory", label: "Brand Memory", icon: Brain },
-        { href: "/content/ai-settings",  label: "AI Settings",  icon: Cpu },
       ],
     },
     {

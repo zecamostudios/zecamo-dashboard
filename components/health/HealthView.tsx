@@ -118,10 +118,10 @@ export function HealthView() {
       {data && (
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: "Online",    value: data.summary.online,   color: "var(--color-success)", cfg: STATUS_CONFIG.online },
-            { label: "Degradado", value: data.summary.degraded, color: "var(--color-warning)", cfg: STATUS_CONFIG.degraded },
+            { label: "Online",    value: data.summary.online,   color: "var(--color-success)" },
+            { label: "Degradado", value: data.summary.degraded, color: "var(--color-warning)" },
             { label: "Offline",   value: data.summary.offline,  color: "var(--color-danger)",  cfg: STATUS_CONFIG.offline },
-          ].map(({ label, value, color, cfg: c }) => (
+          ].map(({ label, value, color }) => (
             <div key={label} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
               <p className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] font-medium mb-2">{label}</p>
               <div className="flex items-end gap-2">

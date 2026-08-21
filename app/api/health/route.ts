@@ -61,43 +61,24 @@ async function checkSupabase(): Promise<{ status: ServiceStatus; message?: strin
 }
 
 async function checkN8n(): Promise<{ status: ServiceStatus; message?: string }> {
-  const url = "https://zecamon8n.zecamostudios.com/api/v1/workflows";
-  const key = process.env.N8N_API_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MmUxMDhhZS1kYWI4LTRhZGItODJmZi0yYmQ5OTUxODMwMDciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiNzliMjE4ZWYtZWYzNy00ZTk4LWIyMGYtZTA5ZjEyNzQ3NDUwIiwiaWF0IjoxNzgwMTYyNDI1fQ.ThW_y8NT2nV-mHKoL62T0NMbluug88U50XzBIRxwaNo";
-  const res = await fetch(url, { headers: { "X-N8N-API-KEY": key } });
+  // ⚠️ Hasta el 2026-08-21 esta clave estaba ESCRITA EN EL CÓDIGO como valor por
+  // defecto, y commiteada. Un secreto en el código no se arregla borrándolo del
+  // archivo: queda en la historia de git para siempre, y con éste se leían y
+  // modificaban todos los workflows de n8n, incluidos los de LEVEL.
+  //
+  // Ahora es obligatoria por entorno. Si falta, el chequeo dice que falta —
+  // que es información útil— en vez de funcionar con una clave escondida.
+  const key = process.env.N8N_API_KEY;
+  if (!key) return { status: "offline", message: "N8N_API_KEY no configurada" };
+
+  const res = await fetch("https://zecamon8n.zecamostudios.com/api/v1/workflows", {
+    headers: { "X-N8N-API-KEY": key },
+  });
   if (res.ok) {
     const data = await res.json() as { data?: unknown[] };
-    const count = data.data?.length ?? 0;
-    return { status: "online", message: `${count} workflows` };
+    return { status: "online", message: `${data.data?.length ?? 0} workflows` };
   }
   return { status: res.status >= 500 ? "degraded" : "offline", message: `HTTP ${res.status}` };
-}
-
-async function checkZernio(): Promise<{ instagram: ServiceStatus; linkedin: ServiceStatus; facebook: ServiceStatus; x: ServiceStatus; message?: string }> {
-  const key = process.env.ZERNIO_API_KEY ?? "sk_449ab552e5f6ee5226690c34be0c585d3636660cb611b361d751258b69f24251";
-  const res = await fetch("https://zernio.com/api/v1/accounts", {
-    headers: { Authorization: `Bearer ${key}` },
-  });
-
-  if (!res.ok) {
-    return { instagram: "offline", linkedin: "offline", facebook: "offline", x: "offline", message: `Zernio HTTP ${res.status}` };
-  }
-
-  const data = await res.json() as { accounts?: Array<{ platform: string; isActive?: boolean; enabled?: boolean; platformStatus?: string }> };
-  const accounts = data.accounts ?? [];
-
-  const isActive = (platform: string) => {
-    const acc = accounts.find((a) => a.platform === platform);
-    if (!acc) return "offline" as ServiceStatus;
-    return (acc.enabled !== false && acc.platformStatus === "active") ? "online" : "degraded";
-  };
-
-  return {
-    instagram: isActive("instagram"),
-    linkedin:  isActive("linkedin"),
-    facebook:  isActive("facebook"),
-    x:         isActive("x"),
-    message: `${accounts.length} cuentas conectadas`,
-  };
 }
 
 async function checkVercel(): Promise<{ status: ServiceStatus; message?: string }> {
@@ -110,32 +91,58 @@ async function checkVercel(): Promise<{ status: ServiceStatus; message?: string 
   return { status: "offline", message: data.status?.description };
 }
 
-export async function GET() {
-  const zernioCheck = await checkZernio().catch(() => ({
-    instagram: "offline" as ServiceStatus,
-    linkedin: "offline" as ServiceStatus,
-    facebook: "offline" as ServiceStatus,
-    x: "offline" as ServiceStatus,
-    message: "Error al conectar con Zernio",
-  }));
+// ── Los sitios de clientes ──────────────────────────────────────────────────
+// Agregado el 2026-08-21. Antes esta pantalla miraba solo la infraestructura
+// (OpenAI, Supabase, n8n): servía para saber si el dashboard iba a andar, no si
+// las webs que le cobramos a alguien están en pie.
+//
+// ⚠️ LOS PANELES SE MIDEN POR /sign-in, NO POR /dashboard.
+// Clerk protege /dashboard devolviendo **404 a propósito** cuando no hay sesión.
+// Un monitor apuntando ahí diría "caído" las veinticuatro horas estando todo
+// perfecto — y un monitor que grita siempre deja de mirarse en una semana.
+const SITIOS: Array<{ name: string; key: string; url: string }> = [
+  { name: "Maximo B",          key: "maximob",        url: "https://maximob.com.ar" },
+  { name: "Maximo B · panel",  key: "maximob-panel",  url: "https://maximob.com.ar/sign-in" },
+  { name: "Cabañas",           key: "cabanas",        url: "https://cabañaslasflores.com" },
+  { name: "Cabañas · panel",   key: "cabanas-panel",  url: "https://panel.cabañaslasflores.com" },
+  { name: "Finca Cajal",       key: "fincacajal",     url: "https://www.fincacajal.com.ar" },
+  { name: "Zecamo",            key: "zecamo",         url: "https://www.zecamostudios.com" },
+  { name: "LEVEL",             key: "level",          url: "https://www.levelstudios.site" },
+  { name: "Descubrir Tucumán", key: "descubrirtuc",   url: "https://descubrirtucuman.vercel.app" },
+];
 
-  const [openai, supabase, n8n, vercel] = await Promise.all([
+/**
+ * Un sitio está bien si responde 2xx o 3xx.
+ *
+ * "Degradado" es por LENTITUD, no por código de estado: arriba de 3 segundos el
+ * visitante ya se fue, aunque técnicamente el sitio conteste. Un semáforo que
+ * solo distingue vivo de muerto no avisa del caso que más plata cuesta, que es
+ * el sitio que anda pero tarda.
+ */
+async function checkSitio(url: string): Promise<{ status: ServiceStatus; message?: string }> {
+  const res = await fetch(url, { redirect: "follow", cache: "no-store" });
+  if (res.status >= 400) return { status: "offline", message: `HTTP ${res.status}` };
+  return { status: "online" };
+}
+
+export async function GET() {
+  const [openai, supabase, n8n, vercel, ...sitios] = await Promise.all([
     check("OpenAI", "openai", checkOpenAI),
     check("Supabase", "supabase", checkSupabase),
     check("n8n", "n8n", checkN8n),
     check("Vercel", "vercel", checkVercel),
+    ...SITIOS.map((s) => check(s.name, s.key, () => checkSitio(s.url))),
   ]);
 
-  const services: ServiceCheck[] = [
-    openai,
-    supabase,
-    n8n,
-    { name: "Instagram",  key: "instagram", status: zernioCheck.instagram, latencyMs: null, message: zernioCheck.message },
-    { name: "LinkedIn",   key: "linkedin",  status: zernioCheck.linkedin,  latencyMs: null, message: zernioCheck.message },
-    { name: "Facebook",   key: "facebook",  status: zernioCheck.facebook,  latencyMs: null, message: "No conectado a Zernio" },
-    { name: "X / Twitter", key: "x",        status: zernioCheck.x,         latencyMs: null, message: "No conectado a Zernio" },
-    vercel,
-  ];
+  // La lentitud se evalúa acá y no adentro de `checkSitio` porque el tiempo lo
+  // mide `check`, que es quien envuelve la llamada.
+  const conLatencia = sitios.map((s) =>
+    s.status === "online" && (s.latencyMs ?? 0) > 3000
+      ? { ...s, status: "degraded" as ServiceStatus, message: `Lento: ${(s.latencyMs! / 1000).toFixed(1)}s` }
+      : s,
+  );
+
+  const services: ServiceCheck[] = [openai, supabase, n8n, vercel, ...conLatencia];
 
   const online   = services.filter((s) => s.status === "online").length;
   const degraded = services.filter((s) => s.status === "degraded").length;
@@ -148,6 +155,10 @@ export async function GET() {
     overall,
     checkedAt: new Date().toISOString(),
     summary: { online, degraded, offline, total: services.length },
+    // Separados para que la pantalla pueda mostrar los sitios de clientes
+    // aparte de la infraestructura: son dos preguntas distintas.
+    infraestructura: [openai, supabase, n8n, vercel].map((x) => x.key),
+    sitios: conLatencia.map((x) => x.key),
     services,
   });
 }
