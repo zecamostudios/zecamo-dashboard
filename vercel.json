@@ -3,7 +3,6 @@
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
   "crons": [
-    { "path": "/api/cron/refresh-instagram", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/monitor", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/refresh-instagram", "schedule": "0 6 * * *" }
   ]
 }

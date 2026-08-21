@@ -6,7 +6,15 @@ import { avisar } from "@/lib/monitor/telegram";
 /**
  * Cron del monitor de sitios.
  *
- * GET /api/cron/monitor — lo dispara Vercel Cron (ver vercel.json).
+ * GET /api/cron/monitor
+ *
+ * ⚠️ NO LO DISPARA VERCEL, y no es un olvido: el plan Hobby **solo admite crons
+ * diarios**. Una expresión de cada 5 minutos en vercel.json no falla al correr: hace que
+ * Vercel RECHACE EL DEPLOY ENTERO con `cron_jobs_limits_reached`, y el síntoma
+ * es que los push dejan de publicarse sin que nadie relacione una cosa con la
+ * otra. Ya pasó el 2026-08-21: dos commits quedaron sin desplegar.
+ *
+ * Lo dispara un cron externo cada 5 minutos (ver docs/monitor.md).
  *
  * POR QUÉ EXISTE APARTE DE /api/health
  * `/api/health` responde cuando alguien abre la pantalla. Sirve para mirar, no
