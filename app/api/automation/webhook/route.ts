@@ -85,16 +85,9 @@ export async function POST(req: NextRequest) {
       break;
     }
 
-    case "analytics:ingest": {
-      const { post_id, platform } = data as Record<string, string>;
-      if (post_id && platform) {
-        // Fire-and-forget ingest
-        const { ingestPlatformMetrics } = await import("@/lib/services/analytics/metrics-ingestion");
-        ingestPlatformMetrics(post_id, platform as "linkedin" | "twitter" | "instagram" | "facebook")
-          .catch(() => {});
-      }
-      break;
-    }
+    // `analytics:ingest` salió el 2026-08-21 junto con Content OS: traía las
+    // métricas de los posts publicados en redes, y ya no hay posts que medir.
+    // El webhook sigue vivo para el resto de los eventos.
 
     default:
       break;
