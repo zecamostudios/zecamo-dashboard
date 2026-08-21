@@ -6,18 +6,33 @@ const TIMEOUT_MS = 5000;
 
 export type ServiceStatus = "online" | "degraded" | "offline";
 
+/**
+ * Tres grupos porque son tres preguntas distintas:
+ *   servicio → ¿el dashboard va a andar?
+ *   web      → ¿lo que ve un cliente de un cliente está en pie?
+ *   panel    → ¿el dueño del local puede entrar a trabajar?
+ * Mezclados en una sola grilla, un OpenAI caído se ve igual de grave que la
+ * tienda de alguien caída, y no lo es.
+ */
+export type GrupoServicio = "servicio" | "web" | "panel";
+
 export interface ServiceCheck {
   name: string;
   key: string;
   status: ServiceStatus;
   latencyMs: number | null;
   message?: string;
+  grupo: GrupoServicio;
+  /** Solo en webs y paneles: para poder abrirlos desde la pantalla. */
+  url?: string;
 }
 
 async function check(
   name: string,
   key: string,
   fn: () => Promise<{ status: ServiceStatus; message?: string }>,
+  grupo: GrupoServicio = "servicio",
+  url?: string,
 ): Promise<ServiceCheck> {
   const start = Date.now();
   try {
@@ -27,11 +42,13 @@ async function check(
         setTimeout(() => reject(new Error("Timeout")), TIMEOUT_MS),
       ),
     ]);
-    return { name, key, ...result, latencyMs: Date.now() - start };
+    return { name, key, grupo, url, ...result, latencyMs: Date.now() - start };
   } catch (err) {
     return {
       name,
       key,
+      grupo,
+      url,
       status: "offline",
       latencyMs: Date.now() - start,
       message: err instanceof Error ? err.message : "Error desconocido",
@@ -101,7 +118,7 @@ export async function GET() {
     ...SITIOS.map((s) => check(s.name, s.key, async () => {
       const r = await chequearSitio(s.url);
       return { status: r.estado, message: r.detalle };
-    })),
+    }, s.grupo, s.url)),
   ]);
 
   const services: ServiceCheck[] = [openai, supabase, n8n, vercel, ...sitios];
@@ -117,10 +134,6 @@ export async function GET() {
     overall,
     checkedAt: new Date().toISOString(),
     summary: { online, degraded, offline, total: services.length },
-    // Separados para que la pantalla pueda mostrar los sitios de clientes
-    // aparte de la infraestructura: son dos preguntas distintas.
-    infraestructura: [openai, supabase, n8n, vercel].map((x) => x.key),
-    sitios: sitios.map((x) => x.key),
     services,
   });
 }

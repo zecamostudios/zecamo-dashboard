@@ -9,10 +9,16 @@
 
 export type EstadoSitio = "online" | "degraded" | "offline";
 
+/** Una web pública o un panel privado: se miran con preguntas distintas. */
+export type GrupoSitio = "web" | "panel";
+
 export interface Sitio {
   name: string;
   key: string;
   url: string;
+  grupo: GrupoSitio;
+  /** A quién le pertenece. Ordena la pantalla por cliente y no por azar. */
+  cliente: string;
 }
 
 /**
@@ -24,14 +30,15 @@ export interface Sitio {
  * una semana.
  */
 export const SITIOS: Sitio[] = [
-  { name: "Maximo B",          key: "maximob",       url: "https://maximob.com.ar" },
-  { name: "Maximo B · panel",  key: "maximob-panel", url: "https://maximob.com.ar/sign-in" },
-  { name: "Cabañas",           key: "cabanas",       url: "https://cabañaslasflores.com" },
-  { name: "Cabañas · panel",   key: "cabanas-panel", url: "https://panel.cabañaslasflores.com" },
-  { name: "Finca Cajal",       key: "fincacajal",    url: "https://www.fincacajal.com.ar" },
-  { name: "Zecamo",            key: "zecamo",        url: "https://www.zecamostudios.com" },
-  { name: "LEVEL",             key: "level",         url: "https://www.levelstudios.site" },
-  { name: "Descubrir Tucumán", key: "descubrirtuc",  url: "https://descubrirtucuman.vercel.app" },
+  { name: "Maximo B",          key: "maximob",       url: "https://maximob.com.ar",              grupo: "web",   cliente: "Maximo B" },
+  { name: "Cabañas Las Flores", key: "cabanas",      url: "https://cabañaslasflores.com",        grupo: "web",   cliente: "Cabañas Las Flores" },
+  { name: "Finca Cajal",       key: "fincacajal",    url: "https://www.fincacajal.com.ar",       grupo: "web",   cliente: "Finca Cajal" },
+  { name: "Zecamo Studios",    key: "zecamo",        url: "https://www.zecamostudios.com",       grupo: "web",   cliente: "Zecamo" },
+  { name: "LEVEL",             key: "level",         url: "https://www.levelstudios.site",       grupo: "web",   cliente: "LEVEL" },
+  { name: "Descubrir Tucumán", key: "descubrirtuc",  url: "https://descubrirtucuman.vercel.app", grupo: "web",   cliente: "Descubrir Tucumán" },
+
+  { name: "Panel Maximo B",    key: "maximob-panel", url: "https://maximob.com.ar/sign-in",      grupo: "panel", cliente: "Maximo B" },
+  { name: "Panel Cabañas",     key: "cabanas-panel", url: "https://panel.cabañaslasflores.com",  grupo: "panel", cliente: "Cabañas Las Flores" },
 ];
 
 /** Arriba de esto el visitante ya se fue, aunque el sitio conteste. */
