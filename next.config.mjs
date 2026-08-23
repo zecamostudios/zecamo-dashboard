@@ -1,7 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: { ignoreBuildErrors: true },
-  eslint:     { ignoreDuringBuilds: true },
+  // Hasta el 2026-08-22 estas dos estaban en `true`: el proyecto compilaba y se
+  // desplegaba AUNQUE tuviera errores de tipos o de lint. O sea que la red de
+  // seguridad estaba instalada y desconectada — por eso hubo errores de tipos
+  // viviendo en `main` sin que nadie los viera.
+  //
+  // Si un deploy falla por acá, no es que "se puso exigente": es que hay un
+  // error de verdad que antes se publicaba igual.
+  typescript: { ignoreBuildErrors: false },
+  eslint:     { ignoreDuringBuilds: false },
   async headers() {
     const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
       ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host
