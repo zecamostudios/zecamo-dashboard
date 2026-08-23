@@ -2,9 +2,6 @@
   "framework": "nextjs",
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
-  // Sin crons: el de refresh-instagram salio el 2026-08-21 junto con la
-  // integracion. El monitor de sitios NO va aca — el plan Hobby solo admite
-  // crons diarios y una expresion mas frecuente hace que Vercel rechace el
-  // deploy entero. Lo dispara un Worker de Cloudflare (repo zecamo-monitor-cron).
-  "crons": []
+  "crons": [],
+  "_nota_crons": "Vacío a propósito. El de refresh-instagram salió el 2026-08-21 con la integración. Y el monitor de sitios NO puede ir acá: el plan Hobby solo admite crons diarios, y una expresión más frecuente hace que Vercel RECHACE EL DEPLOY ENTERO (cron_jobs_limits_reached). Lo dispara un Worker de Cloudflare, repo zecamo-monitor-cron."
 }
