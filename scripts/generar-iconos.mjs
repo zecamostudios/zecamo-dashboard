@@ -1,33 +1,45 @@
 // ============================================================================
-// Zecamo Dashboard — Genera el favicon y los iconos.
+// Zecamo Dashboard — Genera el favicon y los iconos desde el logotipo real.
 //
-// La marca del panel ya existía en pantalla: la "Z" blanca sobre el degradé
-// azul que está arriba de la barra lateral. El icono la reusa en vez de
-// inventar otra cosa, así la pestaña y la aplicación dicen lo mismo.
+// ⚠️ EL LOGOTIPO REAL ES `public/brand/logo-z.png`.
+// Viene del repo `zecamo-landing`. NO usar `logo-z.svg` de ahí: ese archivo es
+// un marcador de posición y lo dice adentro ("TODO: reemplazar con logo real").
+// Si alguien genera el icono desde el SVG, publica una Z genérica dibujada a
+// mano en vez de la marca.
 //
-// La "Z" va dibujada como TRAZADO, no como texto: así no depende de que haya
-// una tipografía instalada en la máquina que genera el icono. Un icono que sale
-// distinto según quién lo compile no es una marca.
+// EL RECORTE, Y POR QUÉ ES ASÍ
+// El original trae mucho aire alrededor de la Z. A 16 píxeles eso deja la marca
+// diminuta en el centro de un cuadrado casi vacío. Se recorta al 80% CENTRADO
+// del original, que agranda la Z conservando el degradé del fondo tal cual.
 //
-// Los colores salen de globals.css (--color-primary y --color-primary-deep).
+// Se probó recomponer la Z sobre un color plano muestreado del archivo y NO
+// sirve: el fondo tiene un degradé sutil, así que quedaba una costura visible
+// entre el color plano y el borde del logo.
 //
 // Correrlo: node scripts/generar-iconos.mjs   (solo si cambia la marca)
 // ============================================================================
 import sharp from "sharp";
 import { writeFileSync } from "node:fs";
 
-const AZUL = "#2B5BFF";       // --color-primary
-const AZUL_HONDO = "#1A3FCC"; // --color-primary-deep
+const LOGO = "public/brand/logo-z.png";
+/** Qué proporción del original se conserva. Menos = la Z se ve más grande. */
+const RECORTE = 0.8;
 
-const svg = (lado) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${lado}" height="${lado}" viewBox="0 0 100 100">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0%" stop-color="${AZUL}"/><stop offset="100%" stop-color="${AZUL_HONDO}"/>
-  </linearGradient></defs>
-  <rect width="100" height="100" fill="url(#g)"/>
-  <path d="M22 20 H78 V34 L46 66 H78 V80 H22 V66 L54 34 H22 Z" fill="#fff"/>
-</svg>`);
-
-const png = (lado) => sharp(svg(lado)).png().toBuffer();
+async function icono(lado) {
+  const m = await sharp(LOGO).metadata();
+  const w = Math.round(m.width * RECORTE);
+  const h = Math.round(m.height * RECORTE);
+  return sharp(LOGO)
+    .extract({
+      left: Math.round((m.width - w) / 2),
+      top: Math.round((m.height - h) / 2),
+      width: w,
+      height: h,
+    })
+    .resize(lado, lado, { fit: "cover" })
+    .png()
+    .toBuffer();
+}
 
 /**
  * Envuelve un PNG en un contenedor .ico.
@@ -39,24 +51,24 @@ const png = (lado) => sharp(svg(lado)).png().toBuffer();
  */
 function envolverIco(datos, lado) {
   const cab = Buffer.alloc(22);
-  cab.writeUInt16LE(0, 0);            // reservado
-  cab.writeUInt16LE(1, 2);            // tipo: 1 = icono
-  cab.writeUInt16LE(1, 4);            // cantidad de imágenes
-  cab.writeUInt8(lado, 6);            // ancho
-  cab.writeUInt8(lado, 7);            // alto
-  cab.writeUInt8(0, 8);               // colores de paleta
-  cab.writeUInt8(0, 9);               // reservado
-  cab.writeUInt16LE(1, 10);           // planos
-  cab.writeUInt16LE(32, 12);          // bits por píxel
+  cab.writeUInt16LE(0, 0);
+  cab.writeUInt16LE(1, 2);
+  cab.writeUInt16LE(1, 4);
+  cab.writeUInt8(lado, 6);
+  cab.writeUInt8(lado, 7);
+  cab.writeUInt8(0, 8);
+  cab.writeUInt8(0, 9);
+  cab.writeUInt16LE(1, 10);
+  cab.writeUInt16LE(32, 12);
   cab.writeUInt32LE(datos.length, 14);
-  cab.writeUInt32LE(22, 18);          // dónde empieza la imagen
+  cab.writeUInt32LE(22, 18);
   return Buffer.concat([cab, datos]);
 }
 
 // Next sirve estos tres por convención, solo por estar en app/, y emite las
-// etiquetas del <head> él mismo. No hay que declarar nada a mano.
-writeFileSync("app/icon.png", await png(512));
-writeFileSync("app/apple-icon.png", await png(180));
-writeFileSync("app/favicon.ico", envolverIco(await png(48), 48));
+// etiquetas del <head> él mismo.
+writeFileSync("app/icon.png", await icono(512));
+writeFileSync("app/apple-icon.png", await icono(180));
+writeFileSync("app/favicon.ico", envolverIco(await icono(48), 48));
 
-console.log("Iconos generados: icon.png (512), apple-icon.png (180), favicon.ico (48)");
+console.log("Iconos generados desde el logotipo real de Zecamo.");
