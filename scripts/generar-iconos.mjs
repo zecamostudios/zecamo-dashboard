@@ -37,6 +37,11 @@ async function icono(lado) {
       height: h,
     })
     .resize(lado, lado, { fit: "cover" })
+    // `ensureAlpha` no es decorativo: el contenedor .ico EXIGE que el PNG de
+    // adentro sea RGBA, y el logotipo de Zecamo no trae canal alfa. Sin esto,
+    // el build de Next muere con "Format error decoding Ico: The PNG is not in
+    // RGBA format!" — un error que apunta al .ico y cuya causa está en el PNG.
+    .ensureAlpha()
     .png()
     .toBuffer();
 }
