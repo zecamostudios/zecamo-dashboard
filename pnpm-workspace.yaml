@@ -1,3 +1,16 @@
+# Qué dependencias pueden ejecutar su script de instalación.
+#
+# NO es un trámite: los scripts de instalación corren código arbitrario en la
+# máquina que instala —la tuya y la de build— y son un vector conocido de ataque
+# de cadena de suministro. pnpm obliga a declararlos uno por uno justamente para
+# que la decisión sea explícita.
+#
+# Se habilita solo lo que lo necesita de verdad:
 allowBuilds:
-  msw: set this to true or false
-  unrs-resolver: set this to true or false
+  # Bajan el binario nativo de la plataforma. Sin su script no funcionan.
+  esbuild: true
+  workerd: true
+  # Resolutor de imports del lint: ya estaba aprobado antes de esta migración.
+  unrs-resolver: true
+  # Mocks de test. No necesita su script para nada de lo que hacemos.
+  msw: false

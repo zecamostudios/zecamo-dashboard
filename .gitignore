@@ -34,3 +34,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Artefactos del build para Cloudflare Workers (2026-08-23).
+# Se regeneran con `npm run cf:build`; commitearlos son ~10 MB de basura por
+# deploy y conflictos garantizados en cada merge.
+.open-next/
+.wrangler/
