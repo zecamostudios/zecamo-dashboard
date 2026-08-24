@@ -96,6 +96,15 @@ async function checkN8n(): Promise<{ status: ServiceStatus; message?: string }> 
     const data = await res.json() as { data?: unknown[] };
     return { status: "online", message: `${data.data?.length ?? 0} workflows` };
   }
+
+  // ⚠️ 401 NO es "n8n caído": es n8n vivo rechazando NUESTRA clave. Decir
+  // "offline" ahí manda a revisar el servidor cuando el problema está de este
+  // lado, y hace perder el tiempo justo cuando uno cree que hay una caída.
+  // Pasó el 2026-08-24: el panel marcaba n8n caído y el servidor estaba
+  // perfecto — la clave del archivo de accesos había vencido.
+  if (res.status === 401 || res.status === 403) {
+    return { status: "degraded", message: "n8n responde, pero rechaza la API key" };
+  }
   return { status: res.status >= 500 ? "degraded" : "offline", message: `HTTP ${res.status}` };
 }
 

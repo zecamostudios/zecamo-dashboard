@@ -41,8 +41,16 @@ export const SITIOS: Sitio[] = [
   { name: "Panel Cabañas",     key: "cabanas-panel", url: "https://panel.cabañaslasflores.com",  grupo: "panel", cliente: "Cabañas Las Flores" },
 ];
 
-/** Arriba de esto el visitante ya se fue, aunque el sitio conteste. */
-const LENTO_MS = 3000;
+/**
+ * Arriba de esto se marca como lento, aunque el sitio conteste.
+ *
+ * Subido de 3 a 5 segundos el 2026-08-24. Con 3 s, los sitios que viven en
+ * Workers cruzaban el umbral cada vez que arrancaban en frío —lo normal en un
+ * sitio con poco tráfico— y el panel los mostraba en amarillo sin que pasara
+ * nada. 5 s sigue siendo malo de verdad: a esa altura la mitad de la gente ya
+ * cerró la pestaña.
+ */
+const LENTO_MS = 5000;
 const TIMEOUT_MS = 15000;
 
 export interface Chequeo {
