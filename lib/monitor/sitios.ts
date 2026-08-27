@@ -67,6 +67,36 @@ export interface Chequeo {
  * anda pero tarda seis segundos, donde la mitad de la gente ya cerró la pestaña.
  */
 export async function chequearSitio(url: string): Promise<Chequeo> {
+  const primero = await intentar(url);
+  if (primero.estado !== "offline") return primero;
+
+  // ⚠️ UN SOLO FALLO NO ALCANZA — y acá el motivo no es genérico.
+  //
+  // Medido el 2026-08-27 con los datos de Cloudflare, minuto a minuto:
+  //
+  //   minutos en que corre este monitor →  59 fallos,  1 OK  (98% falla)
+  //   todos los demás minutos           →   0 fallos,  5 OK  ( 0% falla)
+  //
+  // Exactamente 2 fallos por tick: las 2 URLs de Maximo B. Los visitantes
+  // reales NO se veían afectados nunca. O sea que las caídas que reportaba el
+  // monitor las estaba causando el monitor.
+  //
+  // El mecanismo: cuando un Worker le pide una página a OTRO Worker de la misma
+  // cuenta de Cloudflare, el pedido se enruta internamente y los dos comparten
+  // el presupuesto de recursos. Si el sitio del otro lado hace un render caro,
+  // la suma se pasa y muere con `exceededResources`. Cabañas, que no es un
+  // Worker, nunca falló.
+  //
+  // Un segundo intento con pausa da un isolate distinto y suele pasar. Si los
+  // dos fallan, ahí sí hay algo real.
+  await new Promise((r) => setTimeout(r, 1500));
+  const segundo = await intentar(url);
+  return segundo.estado === "offline"
+    ? { ...segundo, detalle: `${segundo.detalle ?? "sin respuesta"} (2 intentos)` }
+    : segundo;
+}
+
+async function intentar(url: string): Promise<Chequeo> {
   const arranque = Date.now();
   try {
     const res = await fetch(url, {
