@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SITIOS, chequearSitio, type EstadoSitio } from "@/lib/monitor/sitios";
+import { SITIOS, chequearSitio, estaPausado, type EstadoSitio } from "@/lib/monitor/sitios";
 import { avisar } from "@/lib/monitor/telegram";
 
 /**
@@ -58,8 +58,11 @@ export async function GET(req: NextRequest) {
   const supabase = createAdminClient();
   const ahora = new Date().toISOString();
 
+  // Un sitio en pausa no se toca NI se avisa: el punto del experimento es que
+  // no le llegue un solo pedido nuestro.
+  const aChequear = SITIOS.filter((s) => !estaPausado(s));
   const resultados = await Promise.all(
-    SITIOS.map(async (s) => ({ sitio: s, ...(await chequearSitio(s.url)) })),
+    aChequear.map(async (s) => ({ sitio: s, ...(await chequearSitio(s.url)) })),
   );
 
   const { data: previos } = await supabase

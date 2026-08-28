@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SITIOS, chequearSitio } from "@/lib/monitor/sitios";
+import { SITIOS, chequearSitio, estaPausado } from "@/lib/monitor/sitios";
 
 export const dynamic = "force-dynamic";
 const TIMEOUT_MS = 5000;
@@ -124,7 +124,13 @@ export async function GET() {
     check("Supabase", "supabase", checkSupabase),
     check("n8n", "n8n", checkN8n),
     check("Vercel", "vercel", checkVercel),
+    // Los pausados siguen APARECIENDO en el panel, pero en amarillo y diciendo
+    // por qué. Ocultarlos sería peor: Joaco buscaría Maximo B y no estaría, y
+    // no hay nada peor que un tablero que calla.
     ...SITIOS.map((s) => check(s.name, s.key, async () => {
+      if (estaPausado(s)) {
+        return { status: "degraded" as const, message: "En pausa: probando si el monitor causa sus propias alertas" };
+      }
       const r = await chequearSitio(s.url);
       return { status: r.estado, message: r.detalle };
     }, s.grupo, s.url)),

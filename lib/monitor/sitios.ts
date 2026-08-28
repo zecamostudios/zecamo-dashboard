@@ -19,6 +19,19 @@ export interface Sitio {
   grupo: GrupoSitio;
   /** A quién le pertenece. Ordena la pantalla por cliente y no por azar. */
   cliente: string;
+  /**
+   * Fecha ISO hasta la cual NO se chequea este sitio.
+   *
+   * Existe para poder hacer un experimento honesto: sacar un sitio del monitor
+   * y ver si sus fallas desaparecen. Es una pausa con vencimiento y no un
+   * borrado, justamente para que nadie se olvide de volver a prenderlo.
+   */
+  pausadoHasta?: string;
+}
+
+/** ¿Este sitio está en pausa AHORA? Vencida la fecha, vuelve solo. */
+export function estaPausado(s: Sitio, ahora = new Date()): boolean {
+  return !!s.pausadoHasta && ahora < new Date(s.pausadoHasta);
 }
 
 /**
@@ -29,15 +42,39 @@ export interface Sitio {
  * estando todo perfecto — y un monitor que grita siempre deja de mirarse en
  * una semana.
  */
+
+/**
+ * ⏸ MAXIMO B EN PAUSA HASTA EL 2026-08-29 12:00 UTC — es un experimento.
+ *
+ * Lo medido el 2026-08-28, con los números limpios de Cloudflare:
+ *
+ *   pedidos que FALLAN  → CPU p25/p50/p75 clavada en 10,0ms (un techo duro)
+ *   pedidos que ANDAN   → CPU p50 38ms, p99 502ms, sin problema
+ *
+ * Dos topes distintos sobre el MISMO Worker el MISMO día. No es que el plan sea
+ * chico: si lo fuera, los de 38ms tampoco pasarían. Descartados también el
+ * arranque del Worker (29ms contra un límite de 400) y los visitantes reales
+ * (16 de 16 pedidos desde Buenos Aires dieron 200).
+ *
+ * Queda en pie que el monitor se las cause a sí mismo: Worker llamando a otro
+ * Worker de la misma cuenta comparten presupuesto. Y ojo, el reintento de
+ * `chequearSitio` DUPLICA los pedidos justo cuando el sitio ya está sufriendo.
+ *
+ * La prueba: 24h sin tocarlo. Si las fallas de `maximo-b` se van a cero, era
+ * esto y no hay que pagar nada. Si siguen, es la cuenta y ahí sí se paga.
+ *
+ * Se puede hacer AHORA sin costo porque el catálogo todavía está vacío: no hay
+ * clientes entrando ni ventas que perder.
+ */
 export const SITIOS: Sitio[] = [
-  { name: "Maximo B",          key: "maximob",       url: "https://maximob.com.ar",              grupo: "web",   cliente: "Maximo B" },
+  { name: "Maximo B",          key: "maximob",       url: "https://maximob.com.ar",              grupo: "web",   cliente: "Maximo B", pausadoHasta: "2026-08-29T12:00:00Z" },
   { name: "Cabañas Las Flores", key: "cabanas",      url: "https://cabañaslasflores.com",        grupo: "web",   cliente: "Cabañas Las Flores" },
   { name: "Finca Cajal",       key: "fincacajal",    url: "https://www.fincacajal.com.ar",       grupo: "web",   cliente: "Finca Cajal" },
   { name: "Zecamo Studios",    key: "zecamo",        url: "https://www.zecamostudios.com",       grupo: "web",   cliente: "Zecamo" },
   { name: "LEVEL",             key: "level",         url: "https://www.levelstudios.site",       grupo: "web",   cliente: "LEVEL" },
   { name: "Descubrir Tucumán", key: "descubrirtuc",  url: "https://descubrirtucuman.vercel.app", grupo: "web",   cliente: "Descubrir Tucumán" },
 
-  { name: "Panel Maximo B",    key: "maximob-panel", url: "https://maximob.com.ar/sign-in",      grupo: "panel", cliente: "Maximo B" },
+  { name: "Panel Maximo B",    key: "maximob-panel", url: "https://maximob.com.ar/sign-in",      grupo: "panel", cliente: "Maximo B", pausadoHasta: "2026-08-29T12:00:00Z" },
   { name: "Panel Cabañas",     key: "cabanas-panel", url: "https://panel.cabañaslasflores.com",  grupo: "panel", cliente: "Cabañas Las Flores" },
 ];
 
