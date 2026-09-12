@@ -6,6 +6,19 @@
  * que este monitor vigila— no llegaría el mensaje que avisa que se cayó.
  *
  * Un canal de alertas no puede depender de lo que vigila.
+ *
+ * ⚠️ LOS AVISOS ESTÁN APAGADOS A PROPÓSITO DESDE EL 2026-09-12.
+ *
+ * No se apagaron tocando código: se quitó el secret `TELEGRAM_CHAT_ID` del
+ * Worker `zecamo-dashboard`. Por eso esta nota existe — un secret borrado a mano
+ * no deja rastro en git, y sin esto el próximo que mire va a buscar el bug en
+ * esta función y no lo va a encontrar.
+ *
+ * El monitor SIGUE corriendo y guardando estado: la pantalla `/health` está al
+ * día cuando alguien la abre. Lo único que no pasa es que salga el mensaje.
+ *
+ * Para volver a prenderlos:
+ *   wrangler secret put TELEGRAM_CHAT_ID   (el chat del bot "avisos zecamo")
  */
 
 /** Telegram corta los mensajes en 4096 caracteres. */
