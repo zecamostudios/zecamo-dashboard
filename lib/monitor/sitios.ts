@@ -44,37 +44,40 @@ export function estaPausado(s: Sitio, ahora = new Date()): boolean {
  */
 
 /**
- * ⏸ MAXIMO B EN PAUSA HASTA EL 2026-08-29 12:00 UTC — es un experimento.
+ * MAXIMO B — DADO DE BAJA DEL MONITOR (2026-09-12).
  *
- * Lo medido el 2026-08-28, con los números limpios de Cloudflare:
+ * El proyecto se cayó: ya no existe. No está en pausa y no vuelve solo, por eso
+ * salió de la lista en vez de quedar con un `pausadoHasta` que vence y lo
+ * reactiva sin que nadie lo pida. (Eso ya pasó: la pausa del 2026-08-28 venció
+ * el 29 y el monitor volvió a avisar dos semanas sin que nadie leyera el
+ * resultado del experimento.)
  *
- *   pedidos que FALLAN  → CPU p25/p50/p75 clavada en 10,0ms (un techo duro)
- *   pedidos que ANDAN   → CPU p50 38ms, p99 502ms, sin problema
+ * Se va con la causa raíz cerrada, y conviene no perderla porque el mecanismo
+ * sigue vivo para cualquier sitio nuestro que corra sobre Cloudflare Workers:
  *
- * Dos topes distintos sobre el MISMO Worker el MISMO día. No es que el plan sea
- * chico: si lo fuera, los de 38ms tampoco pasarían. Descartados también el
- * arranque del Worker (29ms contra un límite de 400) y los visitantes reales
- * (16 de 16 pedidos desde Buenos Aires dieron 200).
+ *   Desde el 2026-08-24 este dashboard vive en Workers. Un Worker pidiéndole
+ *   una página a OTRO Worker de la misma cuenta enruta internamente y los dos
+ *   COMPARTEN el presupuesto de recursos. El render dinámico del otro lado
+ *   empuja la suma por encima del techo y muere con `exceededResources` → 503.
  *
- * Queda en pie que el monitor se las cause a sí mismo: Worker llamando a otro
- * Worker de la misma cuenta comparten presupuesto. Y ojo, el reintento de
- * `chequearSitio` DUPLICA los pedidos justo cuando el sitio ya está sufriendo.
+ *   Medido el 2026-08-27: 98% de fallas en los minutos en que corría el
+ *   monitor, 0% en todos los demás. Los visitantes reales nunca vieron nada.
  *
- * La prueba: 24h sin tocarlo. Si las fallas de `maximo-b` se van a cero, era
- * esto y no hay que pagar nada. Si siguen, es la cuenta y ahí sí se paga.
+ * Y el razonamiento del 2026-08-28 que descartaba el plan —"si el plan fuera
+ * chico, los de 38ms tampoco pasarían"— ESTABA MAL: Cloudflare mide CPU por
+ * invocación, no wall time, así que esperar a Supabase o a Clerk no suma. Por
+ * eso conviven invocaciones de 38ms que pasan con otras clavadas en 10,0ms,
+ * que es exactamente el techo del plan Free.
  *
- * Se puede hacer AHORA sin costo porque el catálogo todavía está vacío: no hay
- * clientes entrando ni ventas que perder.
+ * O sea: el día que otro sitio nuestro se mude a Workers, esto vuelve.
  */
 export const SITIOS: Sitio[] = [
-  { name: "Maximo B",          key: "maximob",       url: "https://maximob.com.ar",              grupo: "web",   cliente: "Maximo B", pausadoHasta: "2026-08-29T12:00:00Z" },
   { name: "Cabañas Las Flores", key: "cabanas",      url: "https://cabañaslasflores.com",        grupo: "web",   cliente: "Cabañas Las Flores" },
   { name: "Finca Cajal",       key: "fincacajal",    url: "https://www.fincacajal.com.ar",       grupo: "web",   cliente: "Finca Cajal" },
   { name: "Zecamo Studios",    key: "zecamo",        url: "https://www.zecamostudios.com",       grupo: "web",   cliente: "Zecamo" },
   { name: "LEVEL",             key: "level",         url: "https://www.levelstudios.site",       grupo: "web",   cliente: "LEVEL" },
   { name: "Descubrir Tucumán", key: "descubrirtuc",  url: "https://descubrirtucuman.vercel.app", grupo: "web",   cliente: "Descubrir Tucumán" },
 
-  { name: "Panel Maximo B",    key: "maximob-panel", url: "https://maximob.com.ar/sign-in",      grupo: "panel", cliente: "Maximo B", pausadoHasta: "2026-08-29T12:00:00Z" },
   { name: "Panel Cabañas",     key: "cabanas-panel", url: "https://panel.cabañaslasflores.com",  grupo: "panel", cliente: "Cabañas Las Flores" },
 ];
 
