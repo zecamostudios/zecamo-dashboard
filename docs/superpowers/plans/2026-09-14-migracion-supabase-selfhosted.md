@@ -45,6 +45,25 @@ El clon de trabajo en WSL (`~/zecamo/zecamo-dashboard`) ya sale del bueno. **Tod
 
 **El ahorro recién existe cuando los DOS proyectos salgan de Supabase** (el plan Pro se cobra por organización, no por proyecto). El dashboard es el ensayo general; Las Flores es el que libera la plata.
 
+## ✅ CERRADO — Fases 0 a 6 completas (15/09/2026, 03:30)
+
+**El dashboard corre contra el VPS. Supabase Cloud ya no se usa.**
+
+| | |
+|---|---|
+| Worker desplegado | `cdba6ea3` en `panel.zecamostudios.com` · bundle con 14 refs al VPS y **0 a Cloud** |
+| Datos | 26/26 tablas · 38 tablas / 79 policies / RLS en las 38 |
+| Prueba con sesión real | un usuario logueado ve 190 leads, 13 transacciones, 5 tareas, 4 clientes |
+| Bug de fechas | **verificado contra la base**: con `""` da `22007`, con el fix **guarda** |
+| Bug del 404 | Next 16 (`params` es Promise) — arreglado en `crm/[id]`, `pricing/[id]` y el login |
+| n8n | 3 nodos apuntando a la credencial nueva `8XcBwhkFf2a6TTMe` |
+| Vercel | proyecto borrado (HTTP 204), el dominio da 404 |
+| Commits | dashboard `7676fd5` · vps-stack `9912f90` — los dos pusheados |
+
+**Lo que falta:** Fase 7 (Las Flores, ya medida: 11 MB, 9 tablas, 1 archivo en Storage, 0 usuarios de auth → más simple que el dashboard) y Fase 8 (bajar a Free). Más el backup a R2 (`supabase/PENDIENTE-backup-r2.md`) y el monitoreo en Uptime Kuma.
+
+---
+
 ## Progreso (actualizado 15/09/2026, 01:00)
 
 **🟢 SUPABASE ESTÁ ARRIBA EN EL VPS Y CON TODOS LOS DATOS ADENTRO.** Faltan el DNS + NPM (Joaco) y rebuildear el Worker.
