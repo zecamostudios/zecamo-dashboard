@@ -27,16 +27,15 @@ import { Tabs } from "@/components/ui-zecamo/Tabs";
 import { AreaChart } from "@/components/charts/AreaChart";
 import { MrrCard } from "./MrrCard";
 import { TransactionRow } from "./TransactionRow";
-import { LineDistribution } from "./LineDistribution";
-import type { Client, Transaction, FinancePoint, ByLine, ServiceLine } from "@/lib/types";
+import type { Client, Transaction, FinancePoint } from "@/lib/types";
 
 type Currency = "USD" | "ARS";
 type Range = "Mes" | "3M" | "6M" | "YTD";
 
 function exportCSV(transactions: Transaction[], fmt: (n: number) => string) {
   const rows = [
-    ["Fecha", "Concepto", "Línea", "Owner", "Tipo", "Monto"],
-    ...transactions.map((tx) => [tx.d, tx.c, tx.line, tx.owner, tx.type, fmt(tx.a)]),
+    ["Fecha", "Concepto", "Categoría", "Tipo", "Monto"],
+    ...transactions.map((tx) => [tx.d, tx.c, tx.categoria ?? "", tx.type, fmt(tx.a)]),
   ];
   const csv = rows.map((r) => r.join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -53,13 +52,6 @@ const MODAL_INPUT = "w-full rounded-xl bg-white/[0.04] border border-[var(--colo
 const RATE = 1180; // fallback si la API del blue no responde
 
 // Etiquetas completas y claras para el selector de línea (el value sigue siendo el código corto que espera la DB)
-const LINE_LABELS: { id: ServiceLine; label: string }[] = [
-  { id: "AIMA", label: "Automatización con IA" },
-  { id: "B2B", label: "Outbound y ventas B2B" },
-  { id: "Webs", label: "Diseño y desarrollo web" },
-  { id: "Diagnóstico", label: "Diagnóstico (Express / Premium)" },
-];
-
 // Categorías de gasto para egresos (la línea de servicio no aplica a egresos)
 const CATEGORIAS_EGRESO = [
   "Herramientas",
@@ -76,13 +68,10 @@ type TxForm = {
   date: string;
   concept: string;
   line: string;
-  owner: string;
   type: "ingreso" | "egreso";
   amount: string;
   moneda: Currency;
   cotizacion: string;
-  claseEgreso: "fijo" | "variable";
-  lineas: string[];
   categoria: string;
   clienteId: string;
   esMensualidad: boolean;
@@ -91,18 +80,17 @@ type TxForm = {
 const MONTHS: Record<string, string> = { "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr", "05": "May", "06": "Jun", "07": "Jul", "08": "Ago", "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic" };
 
 function emptyForm(rate: number): TxForm {
-  return { dbId: "", date: "", concept: "", line: "Webs", owner: "JS", type: "ingreso", amount: "", moneda: "USD", cotizacion: String(rate), claseEgreso: "variable", lineas: ["Webs"], categoria: "Herramientas", clienteId: "", esMensualidad: false };
+  return { dbId: "", date: "", concept: "", line: "Webs", type: "ingreso", amount: "", moneda: "USD", cotizacion: String(rate), categoria: "Herramientas", clienteId: "", esMensualidad: false };
 }
 
 interface FinanzasViewProps {
   initialClients?: Client[];
   initialTransactions?: Transaction[];
   initialFinance?: FinancePoint[];
-  initialByLine?: ByLine[];
   initialMrrObjetivo?: number;
 }
 
-export function FinanzasView({ initialClients, initialTransactions, initialFinance, initialByLine, initialMrrObjetivo }: FinanzasViewProps) {
+export function FinanzasView({ initialClients, initialTransactions, initialFinance, initialMrrObjetivo }: FinanzasViewProps) {
   const [currency, setCurrency] = useState<Currency>("USD");
   const [range, setRange] = useState<Range>("6M");
   const [showAll, setShowAll] = useState(false);
@@ -141,16 +129,10 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
       date: tx.fecha ?? "",
       concept: tx.c,
       line: tx.line === "Ops" ? "Webs" : tx.line,
-      owner: tx.owner,
       type: tx.type === "out" ? "egreso" : "ingreso",
       amount: String(tx.montoOriginal ?? tx.a),
       moneda: tx.moneda ?? "USD",
       cotizacion: String(tx.cotizacion ?? blueRate),
-      claseEgreso: tx.claseEgreso ?? "variable",
-      lineas: (() => {
-        const ls = (tx.lineas && tx.lineas.length ? tx.lineas : [tx.line]).filter((l) => l !== "Ops");
-        return ls.length ? ls : ["Webs"];
-      })(),
       categoria: tx.categoria ?? "Herramientas",
       clienteId: tx.clienteId ?? "",
       esMensualidad: tx.esMensualidad ?? false,
@@ -163,7 +145,6 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
     table: "transacciones", columns: TX_COLS, order: { column: "fecha" }, limit: 100, map: rowToTransaction,
   });
   const allFinance = initialFinance ?? [];
-  const allByLine = initialByLine ?? [];
 
   // Objetivo de MRR editable (persistido en app_config)
   const [mrrObjetivo, setMrrObjetivo] = useState<number>(initialMrrObjetivo ?? 8500);
@@ -344,7 +325,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
 
       {/* Chart + por línea */}
       <div className="grid grid-cols-12 gap-[14px] mb-[14px]">
-        <Card className="col-span-8 max-[1100px]:col-span-12">
+        <Card className="col-span-12">
           <CardHead>
             <CardTitle big icon={<BarChart3 size={16} />}>Flujo · ingresos vs egresos</CardTitle>
             <span className="font-mono text-[11.5px] text-[var(--color-text-muted)]">
@@ -360,12 +341,6 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
           <AreaChart data={allFinance} height={260} />
         </Card>
 
-        <Card className="col-span-4 max-[1100px]:col-span-12">
-          <CardHead>
-            <CardTitle big icon={<Sparkles size={16} />}>Por línea de servicio</CardTitle>
-          </CardHead>
-          <LineDistribution items={allByLine} totalFormatter={fmt} />
-        </Card>
       </div>
 
       {/* Transacciones */}
@@ -390,8 +365,6 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
                 <tr>
                   <th className="py-2 font-medium">Fecha</th>
                   <th className="py-2 font-medium">Concepto</th>
-                  <th className="py-2 font-medium">Línea</th>
-                  <th className="py-2 font-medium">Owner</th>
                   <th className="py-2 font-medium">Tipo</th>
                   <th className="py-2 font-medium text-right">Monto</th>
                 </tr>
@@ -468,10 +441,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
           const dLabel = `${dd} ${MONTHS[today.slice(5, 7)] ?? ""}`;
           const montoUsd = saved.moneda === "ARS" ? (cot > 0 ? Math.round((montoOrig / cot) * 100) / 100 : 0) : montoOrig;
           const isEgreso = saved.type === "egreso";
-          const claseEgreso = isEgreso ? saved.claseEgreso : null;
           const categoria = isEgreso ? saved.categoria : null;
-          const lineas = isEgreso ? null : (saved.lineas.length ? saved.lineas : ["Webs"]);
-          const lineaServicio = isEgreso ? null : (lineas?.[0] ?? null);
           const clienteId = !isEgreso && saved.clienteId ? saved.clienteId : null;
           const esMensualidad = !isEgreso && saved.esMensualidad;
           const clienteNombre = clienteId ? allClients.find((c) => c.dbId === clienteId)?.name : undefined;
@@ -481,15 +451,12 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             d: dLabel,
             fecha: today,
             c: saved.concept.trim(),
-            line: (lineaServicio ?? "Ops") as Transaction["line"],
-            lineas: (lineas ?? undefined) as Transaction["lineas"],
+            line: "Ops" as Transaction["line"],
             a: montoUsd,
             type: isEgreso ? "out" : "in",
-            owner: saved.owner as Transaction["owner"],
             moneda: saved.moneda,
             montoOriginal: montoOrig,
             cotizacion: saved.moneda === "ARS" ? cot : undefined,
-            claseEgreso: claseEgreso ?? undefined,
             categoria: categoria ?? undefined,
             clienteId: clienteId ?? undefined,
             clienteNombre,
@@ -504,11 +471,7 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
             monto_original: montoOrig,
             moneda: saved.moneda,
             cotizacion: saved.moneda === "ARS" ? cot : null,
-            clase_egreso: claseEgreso,
             categoria,
-            linea_servicio: lineaServicio,
-            lineas_servicio: lineas,
-            owner_initials: saved.owner,
             cliente_id: clienteId,
             es_mensualidad: esMensualidad,
           };
@@ -580,13 +543,6 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
                       {CATEGORIAS_EGRESO.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Tipo de gasto</label>
-                    <select value={txForm.claseEgreso} onChange={(e) => setTxForm((f) => ({ ...f, claseEgreso: e.target.value as TxForm["claseEgreso"] }))} className={MODAL_INPUT}>
-                      <option value="fijo">Fijo</option>
-                      <option value="variable">Variable</option>
-                    </select>
-                  </div>
                 </div>
               )}
 
@@ -624,38 +580,6 @@ export function FinanzasView({ initialClients, initialTransactions, initialFinan
 
               {txForm.type === "ingreso" && (
                 <>
-                  <div>
-                    <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">
-                      Servicios <span className="text-[var(--color-text-dim)] normal-case tracking-normal">(podés elegir varios)</span>
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {LINE_LABELS.map((l) => {
-                        const active = txForm.lineas.includes(l.id);
-                        return (
-                          <button
-                            key={l.id}
-                            type="button"
-                            onClick={() =>
-                              setTxForm((f) => ({
-                                ...f,
-                                lineas: active ? f.lineas.filter((x) => x !== l.id) : [...f.lineas, l.id],
-                              }))
-                            }
-                            className={`px-3 py-1.5 rounded-full text-[12px] border cursor-pointer transition ${
-                              active
-                                ? "bg-[var(--color-primary-hover)] text-white border-[var(--color-primary-hover)]"
-                                : "bg-white/[0.03] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-2)]"
-                            }`}
-                          >
-                            {l.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {txForm.lineas.length === 0 && (
-                      <div className="text-[11px] text-[var(--color-warning)] mt-1.5">Elegí al menos un servicio</div>
-                    )}
-                  </div>
                   <div>
                     <label className="text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] mb-1.5 block">Pago de cliente</label>
                     <select

@@ -25,6 +25,8 @@ const STAGE_STYLES: Record<string, string> = {
   paused:      "bg-[rgba(240,168,42,0.14)] text-[var(--color-warning)]",
   onboarding:  "bg-[rgba(43,91,255,0.10)] text-[var(--color-primary-hover)]",
   backlog:     "bg-white/[0.06] text-[var(--color-text-muted)]",
+  en_desarrollo: "bg-[rgba(43,91,255,0.10)] text-[var(--color-primary-hover)]",
+  en_soporte:    "bg-[rgba(45,212,212,0.14)] text-[var(--color-info)]",
   curso:       "bg-[rgba(43,91,255,0.10)] text-[var(--color-primary-hover)]",
   review:      "bg-[rgba(240,168,42,0.14)] text-[var(--color-warning)]",
   entregado:   "bg-[rgba(34,197,139,0.14)] text-[var(--color-success)]",

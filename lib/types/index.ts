@@ -65,7 +65,10 @@ export interface Client {
   next: string;
 }
 
-export type ProjectStatus = "backlog" | "curso" | "review" | "entregado" | "archivado";
+// El vocabulario de la base (columna `estado`). Antes habia DOS: este y el de
+// `ui_estado` (backlog/curso/review/...), que leia el kanban. Como nada escribia
+// ui_estado, el tablero quedaba congelado en backlog.
+export type ProjectStatus = "propuesta" | "en_desarrollo" | "entregado" | "en_soporte";
 export type Priority = "alta" | "media" | "baja";
 
 export interface Project {
@@ -94,6 +97,8 @@ export interface Task {
   due: string;
   /** Fecha limite sin formatear (YYYY-MM-DD), para ordenar y saber que vence hoy. */
   dueAt?: string;
+  /** FK al proyecto, para poder editarla desde el formulario. */
+  projectId?: string;
   prio: Priority;
   proj: string;
   owner: OwnerId;
@@ -138,7 +143,8 @@ export interface Transaction {
   line: ServiceLine | "Ops";
   a: number; // monto canónico en USD (para KPIs y agregaciones)
   type: TransactionType;
-  owner: OwnerId;
+  /** Ya no se carga desde la interfaz: queda por compatibilidad con datos viejos. */
+  owner?: OwnerId;
   fecha?: string; // YYYY-MM-DD crudo, para precargar la edición
   moneda?: Moneda; // moneda en la que se cargó
   montoOriginal?: number; // monto tal como se ingresó (en `moneda`)

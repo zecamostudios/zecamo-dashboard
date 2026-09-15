@@ -77,7 +77,24 @@ export function rowToClient(row: Record<string, unknown>, idx: number): Client {
 
 // ── Proyectos ─────────────────────────────────────────────────
 export const PROJECT_COLS =
-  "id, nombre, cliente_id, linea_servicio, asignado_initials, equipo, progreso, prioridad, ui_estado, fecha_inicio, fecha_entrega, clientes(nombre)";
+  "id, nombre, cliente_id, descripcion, estado, ui_estado, linea_servicio, asignado_initials, equipo, progreso, prioridad, fecha_inicio, fecha_entrega, clientes(nombre)";
+
+// Proyectos viejos que solo tienen ui_estado cargado siguen cayendo en su columna.
+const UI_ESTADO_TO_STATUS: Record<string, ProjectStatus> = {
+  backlog: "propuesta",
+  curso: "en_desarrollo",
+  review: "en_desarrollo",
+  entregado: "entregado",
+  archivado: "en_soporte",
+};
+
+const PROJECT_STATUSES: ProjectStatus[] = ["propuesta", "en_desarrollo", "entregado", "en_soporte"];
+
+function estadoToProjectStatus(estado: unknown, uiEstado: unknown): ProjectStatus {
+  const raw = String(estado ?? "");
+  if ((PROJECT_STATUSES as string[]).includes(raw)) return raw as ProjectStatus;
+  return UI_ESTADO_TO_STATUS[String(uiEstado ?? "")] ?? "propuesta";
+}
 
 export function rowToProject(row: Record<string, unknown>, idx: number): Project {
   const cli = row.clientes as { nombre?: string } | null;
@@ -91,7 +108,7 @@ export function rowToProject(row: Record<string, unknown>, idx: number): Project
     start: fmtDate(row.fecha_inicio, { day: "numeric", month: "short", year: "numeric" }),
     due: fmtDate(row.fecha_entrega, { day: "numeric", month: "short", year: "numeric" }),
     progress: Number(row.progreso ?? 0),
-    status: (String(row.ui_estado ?? "backlog")) as ProjectStatus,
+    status: estadoToProjectStatus(row.estado, row.ui_estado),
     priority: (String(row.prioridad ?? "media")) as Priority,
     team: ((row.equipo as string[]) ?? []) as OwnerId[],
   };
@@ -99,7 +116,7 @@ export function rowToProject(row: Record<string, unknown>, idx: number): Project
 
 // ── Tareas ────────────────────────────────────────────────────
 export const TASK_COLS =
-  "id, titulo, estado, prioridad, fecha_limite, asignado_initials, proyecto_nombre, etiquetas";
+  "id, titulo, estado, prioridad, fecha_limite, asignado_initials, proyecto_id, proyecto_nombre, etiquetas";
 
 const ESTADO_TO_STATUS: Record<string, TaskStatus> = { todo: "hacer", doing: "curso", review: "review", done: "hecho" };
 
@@ -114,6 +131,7 @@ export function rowToTask(row: Record<string, unknown>, idx: number): Task {
     dueAt: row.fecha_limite ? String(row.fecha_limite).slice(0, 10) : undefined,
     owner: (String(row.asignado_initials ?? "JS")) as OwnerId,
     proj: String(row.proyecto_nombre ?? "General"),
+    projectId: row.proyecto_id ? String(row.proyecto_id) : undefined,
     tags: (row.etiquetas as string[]) ?? [],
     done: String(row.estado) === "done",
   };

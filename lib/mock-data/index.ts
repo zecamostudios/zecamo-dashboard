@@ -67,17 +67,17 @@ export const CLIENTS: Client[] = [
 ];
 
 export const PROJECTS: Project[] = [
-  { id: 1,  name: "Café Atlas · Web v2",              client: "Café Atlas",         line: "Webs",        owner: "JS", start: "15 Abr 2026", due: "30 May 2026", progress: 72,  status: "curso",     priority: "alta",  team: ["JS","LM"] },
-  { id: 2,  name: "Salud Norte · Bot pacientes",      client: "Salud Norte",        line: "AIMA",        owner: "LM", start: "10 Abr 2026", due: "14 Jun 2026", progress: 45,  status: "curso",     priority: "alta",  team: ["LM","JS"] },
-  { id: 3,  name: "Boutique Lila · E-commerce",       client: "Boutique Lila",      line: "Webs",        owner: "JS", start: "20 Mar 2026", due: "28 May 2026", progress: 88,  status: "review",    priority: "media", team: ["JS"] },
-  { id: 4,  name: "GymForce · Diagnóstico Express",   client: "GymForce",           line: "Diagnóstico", owner: "BR", start: "08 May 2026", due: "10 Jun 2026", progress: 20,  status: "curso",     priority: "media", team: ["BR","JS"] },
-  { id: 5,  name: "Vidrios del Sur · Landing",        client: "Vidrios del Sur",    line: "Webs",        owner: "JS", start: "05 May 2026", due: "26 May 2026", progress: 95,  status: "review",    priority: "baja",  team: ["JS"] },
-  { id: 6,  name: "Estudio Mendoza · Bot WhatsApp",   client: "Estudio Mendoza",    line: "AIMA",        owner: "LM", start: "01 May 2026", due: "05 Jun 2026", progress: 60,  status: "curso",     priority: "alta",  team: ["LM"] },
-  { id: 7,  name: "Inmobiliaria · Outbound LinkedIn", client: "Inmobiliaria Casas", line: "B2B",         owner: "BR", start: "20 May 2026", due: "20 Jun 2026", progress: 15,  status: "backlog",   priority: "alta",  team: ["BR","LM"] },
-  { id: 8,  name: "Clínica Vet. · Campaña Q3",        client: "Clínica Vet. Sol",   line: "B2B",         owner: "LM", start: "22 May 2026", due: "15 Jul 2026", progress: 8,   status: "backlog",   priority: "media", team: ["LM"] },
+  { id: 1,  name: "Café Atlas · Web v2",              client: "Café Atlas",         line: "Webs",        owner: "JS", start: "15 Abr 2026", due: "30 May 2026", progress: 72,  status: "en_desarrollo",     priority: "alta",  team: ["JS","LM"] },
+  { id: 2,  name: "Salud Norte · Bot pacientes",      client: "Salud Norte",        line: "AIMA",        owner: "LM", start: "10 Abr 2026", due: "14 Jun 2026", progress: 45,  status: "en_desarrollo",     priority: "alta",  team: ["LM","JS"] },
+  { id: 3,  name: "Boutique Lila · E-commerce",       client: "Boutique Lila",      line: "Webs",        owner: "JS", start: "20 Mar 2026", due: "28 May 2026", progress: 88,  status: "en_desarrollo",    priority: "media", team: ["JS"] },
+  { id: 4,  name: "GymForce · Diagnóstico Express",   client: "GymForce",           line: "Diagnóstico", owner: "BR", start: "08 May 2026", due: "10 Jun 2026", progress: 20,  status: "en_desarrollo",     priority: "media", team: ["BR","JS"] },
+  { id: 5,  name: "Vidrios del Sur · Landing",        client: "Vidrios del Sur",    line: "Webs",        owner: "JS", start: "05 May 2026", due: "26 May 2026", progress: 95,  status: "en_desarrollo",    priority: "baja",  team: ["JS"] },
+  { id: 6,  name: "Estudio Mendoza · Bot WhatsApp",   client: "Estudio Mendoza",    line: "AIMA",        owner: "LM", start: "01 May 2026", due: "05 Jun 2026", progress: 60,  status: "en_desarrollo",     priority: "alta",  team: ["LM"] },
+  { id: 7,  name: "Inmobiliaria · Outbound LinkedIn", client: "Inmobiliaria Casas", line: "B2B",         owner: "BR", start: "20 May 2026", due: "20 Jun 2026", progress: 15,  status: "propuesta",   priority: "alta",  team: ["BR","LM"] },
+  { id: 8,  name: "Clínica Vet. · Campaña Q3",        client: "Clínica Vet. Sol",   line: "B2B",         owner: "LM", start: "22 May 2026", due: "15 Jul 2026", progress: 8,   status: "propuesta",   priority: "media", team: ["LM"] },
   { id: 9,  name: "Café Atlas · Landing v1",          client: "Café Atlas",         line: "Webs",        owner: "JS", start: "10 Ene 2026", due: "28 Feb 2026", progress: 100, status: "entregado", priority: "alta",  team: ["JS"] },
   { id: 10, name: "Salud Norte · Setup CRM",          client: "Salud Norte",        line: "AIMA",        owner: "LM", start: "05 Nov 2025", due: "15 Dic 2025", progress: 100, status: "entregado", priority: "alta",  team: ["LM","JS"] },
-  { id: 11, name: "Mar Azul · Web (pausado)",         client: "Mar Azul Hotel",     line: "Webs",        owner: "BR", start: "15 Dic 2025", due: "—",           progress: 35,  status: "archivado", priority: "baja",  team: ["BR"] },
+  { id: 11, name: "Mar Azul · Web (pausado)",         client: "Mar Azul Hotel",     line: "Webs",        owner: "BR", start: "15 Dic 2025", due: "—",           progress: 35,  status: "en_soporte", priority: "baja",  team: ["BR"] },
 ];
 
 export const TASKS: Task[] = [

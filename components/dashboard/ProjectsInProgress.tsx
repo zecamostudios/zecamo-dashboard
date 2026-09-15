@@ -13,7 +13,7 @@ interface ProjectsInProgressProps {
 }
 
 export function ProjectsInProgress({ projects: initialProjects }: ProjectsInProgressProps) {
-  const projects = (initialProjects ?? PROJECTS).filter((p) => p.status === "curso" || p.status === "review").slice(0, 5);
+  const projects = (initialProjects ?? PROJECTS).filter((p) => p.status === "en_desarrollo").slice(0, 5);
 
   return (
     <Card>

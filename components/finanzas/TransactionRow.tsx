@@ -1,6 +1,5 @@
 import { Pencil } from "lucide-react";
 import { Pill } from "@/components/ui-zecamo/Pill";
-import { OwnerAvatar } from "@/components/ui-zecamo/OwnerAvatar";
 import { fmtN } from "@/lib/utils";
 import type { Transaction } from "@/lib/types";
 
@@ -21,7 +20,7 @@ export function TransactionRow({ tx, format, onEdit }: TransactionRowProps) {
 
   return (
     <tr
-      className={`border-b border-[var(--color-border)] last:border-b-0 group ${editable ? "cursor-pointer hover:bg-white/[0.02]" : ""}`}
+      className={`border-b border-[var(--color-border)] last:border-b-0 group ${editable ? "cursor-pointer [@media(hover:hover)]:hover:bg-white/[0.02]" : ""}`}
       onClick={editable ? () => onEdit!(tx) : undefined}
     >
       <td className="py-[10px] font-mono text-[var(--color-text-muted)] text-[11.5px]">{tx.d}</td>
@@ -29,7 +28,7 @@ export function TransactionRow({ tx, format, onEdit }: TransactionRowProps) {
         <div className="font-medium flex items-center gap-1.5">
           {tx.c}
           {editable && (
-            <Pencil size={11} className="text-[var(--color-text-dim)] opacity-0 group-hover:opacity-100 transition" />
+            <Pencil size={11} className="text-[var(--color-text-dim)] opacity-0 group-hover:opacity-100 transition-opacity duration-[140ms] ease-out" />
           )}
         </div>
         {isIn && tx.clienteNombre && (
@@ -38,38 +37,15 @@ export function TransactionRow({ tx, format, onEdit }: TransactionRowProps) {
             {tx.esMensualidad && <span className="text-[var(--color-primary-hover)]">· mensualidad</span>}
           </div>
         )}
-      </td>
-      <td className="py-[10px]">
-        {isIn ? (
-          (() => {
-            const lineas = (tx.lineas && tx.lineas.length ? tx.lineas : [tx.line]).filter((l) => l !== "Ops");
-            return lineas.length ? (
-              <div className="flex flex-wrap gap-1">
-                {lineas.map((l, i) => (
-                  <Pill key={i} variant={l}>{l}</Pill>
-                ))}
-              </div>
-            ) : (
-              <span className="text-[11.5px] text-[var(--color-text-muted)]">—</span>
-            );
-          })()
-        ) : (
-          <span className="text-[11.5px] text-[var(--color-text-muted)]">{tx.categoria ?? "—"}</span>
+        {!isIn && tx.categoria && (
+          <div className="text-[10.5px] text-[var(--color-text-muted)] mt-0.5">{tx.categoria}</div>
         )}
-      </td>
-      <td className="py-[10px]">
-        <OwnerAvatar id={tx.owner} size="xs" />
       </td>
       <td className="py-[10px]">
         <div className="flex items-center gap-1.5">
           <Pill variant={isIn ? "active" : "paused"} dot>
             {isIn ? "Ingreso" : "Egreso"}
           </Pill>
-          {!isIn && tx.claseEgreso && (
-            <Pill variant={tx.claseEgreso === "fijo" ? "lead" : "seguim"}>
-              {tx.claseEgreso === "fijo" ? "Fijo" : "Variable"}
-            </Pill>
-          )}
         </div>
       </td>
       <td
