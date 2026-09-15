@@ -8,14 +8,9 @@ import {
   Users,
   User,
   Folder,
-  Calculator,
   Wallet,
-  Target,
   CheckSquare,
-  BarChart3,
-  BookOpen,
   ChevronUp,
-  Bot,
   Activity,
   X,
   type LucideIcon,
@@ -53,12 +48,14 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
     router.push("/login");
   }
 
+  // Menu corto a proposito (15/09/2026): Asistente, Calculadora, Analiticas,
+  // Manual y Prospeccion salieron del sidebar por decision de Joaco. Las rutas
+  // y el codigo siguen vivos — entrando por URL funcionan igual.
   const groups: NavGroup[] = [
     {
       label: "General",
       items: [
         { href: "/", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/asistente", label: "Asistente", icon: Bot, dot: true },
         { href: "/crm", label: "CRM", icon: Users, badge: prospectsCount },
         { href: "/clientes", label: "Clientes", icon: User },
         { href: "/proyectos", label: "Proyectos", icon: Folder },
@@ -67,18 +64,9 @@ export function Sidebar({ tasksCount, prospectsCount, onClose }: SidebarProps) {
     {
       label: "Operación",
       items: [
-        { href: "/pricing", label: "Calculadora", icon: Calculator },
-        { href: "/finanzas", label: "Finanzas", icon: Wallet },
-        { href: "/outbound/cola", label: "Prospección", icon: Target },
         { href: "/tareas", label: "Tareas", icon: CheckSquare, badge: tasksCount },
-        { href: "/analytics", label: "Analíticas", icon: BarChart3 },
-      ],
-    },
-    {
-      label: "Recursos",
-      items: [
-        { href: "/health",         label: "System Health",  icon: Activity },
-        { href: "/manual",         label: "Manual",         icon: BookOpen },
+        { href: "/finanzas", label: "Finanzas", icon: Wallet },
+        { href: "/health", label: "System Health", icon: Activity },
       ],
     },
   ];

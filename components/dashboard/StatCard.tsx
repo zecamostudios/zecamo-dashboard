@@ -61,6 +61,15 @@ export function StatCard({ label, value, unit, currency, icon: Icon, delta, sub,
   );
 }
 
-export function StatGrid({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-4 gap-[14px] mb-[18px] max-[1100px]:grid-cols-2 max-[640px]:grid-cols-1">{children}</div>;
+export function StatGrid({ children, cols = 4 }: { children: ReactNode; cols?: 3 | 4 }) {
+  return (
+    <div
+      className={cn(
+        "grid gap-[14px] mb-[18px] max-[1100px]:grid-cols-2 max-[640px]:grid-cols-1",
+        cols === 3 ? "grid-cols-3" : "grid-cols-4",
+      )}
+    >
+      {children}
+    </div>
+  );
 }

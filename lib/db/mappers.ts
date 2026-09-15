@@ -18,7 +18,7 @@ const fmtDate = (v: unknown, opts: Intl.DateTimeFormatOptions) =>
 
 // ── Prospectos ────────────────────────────────────────────────
 export const PROSPECT_COLS =
-  "id, negocio, nombre_dueno, fuente, etapa, linea_servicio, valor_estimado, fecha_contacto, created_at, volver_a_llamar";
+  "id, negocio, nombre_dueno, telefono, fuente, etapa, linea_servicio, valor_estimado, fecha_contacto, created_at, volver_a_llamar";
 
 export function rowToProspect(row: Record<string, unknown>, idx: number): Prospect {
   return {
@@ -36,12 +36,26 @@ export function rowToProspect(row: Record<string, unknown>, idx: number): Prospe
     last: String(row.last_activity ?? "—"),
     source: String(row.fuente ?? "Web"),
     recall: Boolean(String(row.volver_a_llamar ?? "").trim()),
+    recallText: String(row.volver_a_llamar ?? "").trim() || undefined,
+    phone: String(row.telefono ?? "").trim() || undefined,
   };
 }
 
 // ── Clientes ──────────────────────────────────────────────────
 export const CLIENT_COLS =
-  "id, nombre, contacto_nombre, mrr_usd, ui_status, linea_servicio, health_score, next_action, fecha_inicio";
+  "id, nombre, contacto_nombre, mrr_usd, estado, ui_status, linea_servicio, health_score, next_action, fecha_inicio";
+
+const ESTADO_CLIENTE_TO_STATUS: Record<string, ClientStatus> = {
+  activo: "active",
+  pausado: "paused",
+  churn: "paused",
+};
+
+function estadoToStatus(estado: unknown, uiStatus: unknown): ClientStatus {
+  const mapped = ESTADO_CLIENTE_TO_STATUS[String(estado ?? "")];
+  if (mapped) return mapped;
+  return (String(uiStatus ?? "active")) as ClientStatus;
+}
 
 export function rowToClient(row: Record<string, unknown>, idx: number): Client {
   return {
@@ -52,7 +66,9 @@ export function rowToClient(row: Record<string, unknown>, idx: number): Client {
     line: (String(row.linea_servicio ?? "Webs")) as ServiceLine,
     mrr: Number(row.mrr_usd ?? 0),
     since: fmtDate(row.fecha_inicio, { month: "short", year: "numeric" }),
-    status: (String(row.ui_status ?? "active")) as ClientStatus,
+    // `estado` manda sobre `ui_status`: es la columna que escribe la ficha. Antes
+    // se leia solo ui_status y marcar "Pausado" no cambiaba nada en la lista.
+    status: estadoToStatus(row.estado, row.ui_status),
     projects: typeof row.projects_count === "number" ? row.projects_count : 1,
     health: Number(row.health_score ?? 80),
     next: String(row.next_action ?? "—"),
@@ -95,6 +111,7 @@ export function rowToTask(row: Record<string, unknown>, idx: number): Task {
     status: ESTADO_TO_STATUS[String(row.estado ?? "todo")] ?? "hacer",
     prio: (String(row.prioridad ?? "media")) as Priority,
     due: row.fecha_limite ? fmtDate(row.fecha_limite, { day: "numeric", month: "short" }) : "Sin fecha",
+    dueAt: row.fecha_limite ? String(row.fecha_limite).slice(0, 10) : undefined,
     owner: (String(row.asignado_initials ?? "JS")) as OwnerId,
     proj: String(row.proyecto_nombre ?? "General"),
     tags: (row.etiquetas as string[]) ?? [],

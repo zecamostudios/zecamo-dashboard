@@ -1,7 +1,12 @@
 import { Pill } from "@/components/ui-zecamo/Pill";
-import { Progress } from "@/components/ui-zecamo/Progress";
 import { fmtN } from "@/lib/utils";
 import type { Client } from "@/lib/types";
+
+/**
+ * Cuatro columnas. Salieron "Línea", "Health" y "Próximo hito" (metricas que no
+ * se cargaban desde ningun lado) y "Proy.", que siempre mostraba 1 porque el
+ * conteo de proyectos nunca se consultaba.
+ */
 
 interface ClientesTableProps {
   clients: Client[];
@@ -14,24 +19,25 @@ const STATUS_LABEL: Record<string, string> = {
   paused: "Pausado",
 };
 
-const LINE_GRADIENT: Record<string, string> = {
-  AIMA: "linear-gradient(135deg, var(--color-primary), rgba(0,0,0,0.4))",
-  B2B: "linear-gradient(135deg, var(--color-purple), rgba(0,0,0,0.4))",
-  Webs: "linear-gradient(135deg, var(--color-success), rgba(0,0,0,0.4))",
-  "Diagnóstico": "linear-gradient(135deg, var(--color-warning), rgba(0,0,0,0.4))",
-};
-
 export function ClientesTable({ clients, onSelect }: ClientesTableProps) {
+  if (clients.length === 0) {
+    return (
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-8 text-center text-[13px] text-[var(--color-text-muted)]">
+        No hay clientes que coincidan.
+      </div>
+    );
+  }
+
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl overflow-hidden">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="text-left border-b border-[var(--color-border)]">
-            {["Cliente", "Línea", "Estado", "MRR", "Proy.", "Health", "Cliente desde", "Próximo hito"].map((h, i) => (
+            {["Cliente", "Estado", "Paga por mes", "Desde"].map((h, i) => (
               <th
                 key={h}
                 className="text-[10.5px] uppercase tracking-wider text-[var(--color-text-dim)] font-medium px-[18px] py-3"
-                style={{ textAlign: i === 3 ? "right" : "left" }}
+                style={{ textAlign: i === 2 ? "right" : "left" }}
               >
                 {h}
               </th>
@@ -43,38 +49,30 @@ export function ClientesTable({ clients, onSelect }: ClientesTableProps) {
             <tr
               key={c.id}
               onClick={() => onSelect(c)}
-              className="border-b border-[var(--color-border)] hover:bg-white/[0.02] cursor-pointer transition-colors"
+              className="border-b border-[var(--color-border)] last:border-b-0 [@media(hover:hover)]:hover:bg-white/[0.02] cursor-pointer transition-colors duration-[140ms] ease-out"
             >
               <td className="px-[18px] py-3">
                 <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-8 h-8 rounded-full grid place-items-center font-semibold text-white text-[11.5px] shrink-0"
-                    style={{ background: LINE_GRADIENT[c.line] ?? "var(--color-surface-2)" }}
-                  >
+                  <div className="w-8 h-8 rounded-full grid place-items-center font-semibold text-white text-[11.5px] shrink-0 bg-[var(--color-surface-2)] border border-[var(--color-border-2)]">
                     {c.name.split(" ").slice(0, 2).map((w) => w[0]).join("")}
                   </div>
-                  <div>
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-[11.5px] text-[var(--color-text-muted)]">{c.contact}</div>
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{c.name}</div>
+                    {c.contact && (
+                      <div className="text-[11.5px] text-[var(--color-text-muted)] truncate">{c.contact}</div>
+                    )}
                   </div>
                 </div>
               </td>
-              <td className="px-[18px] py-3"><Pill variant={c.line}>{c.line}</Pill></td>
-              <td className="px-[18px] py-3"><Pill variant={c.status} dot>{STATUS_LABEL[c.status]}</Pill></td>
-              <td className="px-[18px] py-3 text-right font-mono">${fmtN(c.mrr)}/mo</td>
-              <td className="px-[18px] py-3 font-mono text-[var(--color-text-muted)]">{c.projects}</td>
-              <td className="px-[18px] py-3 w-32">
-                <div className="flex items-center gap-2">
-                  <Progress
-                    value={c.health}
-                    className="flex-1"
-                    variant={c.health > 80 ? "success" : c.health > 60 ? "warning" : "danger"}
-                  />
-                  <span className="font-mono text-[11.5px] text-[var(--color-text-muted)] w-6 text-right">{c.health}</span>
-                </div>
+              <td className="px-[18px] py-3">
+                <Pill variant={c.status} dot>{STATUS_LABEL[c.status] ?? c.status}</Pill>
               </td>
-              <td className="px-[18px] py-3 font-mono text-[var(--color-text-muted)]">{c.since}</td>
-              <td className="px-[18px] py-3 text-[var(--color-text-muted)] text-[12px]">{c.next}</td>
+              <td className="px-[18px] py-3 text-right font-[family-name:var(--font-mono)]">
+                {c.mrr > 0 ? `$${fmtN(c.mrr)}` : "—"}
+              </td>
+              <td className="px-[18px] py-3 font-[family-name:var(--font-mono)] text-[var(--color-text-muted)]">
+                {c.since}
+              </td>
             </tr>
           ))}
         </tbody>

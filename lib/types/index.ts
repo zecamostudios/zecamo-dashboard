@@ -44,6 +44,9 @@ export interface Prospect {
   last: string;
   source: string;
   recall?: boolean;
+  /** Texto crudo de "volver a llamar" (ej: "Martes 15hs"). */
+  recallText?: string;
+  phone?: string;
 }
 
 export type ClientStatus = "active" | "onboarding" | "paused";
@@ -89,6 +92,8 @@ export interface Task {
   status: TaskStatus;
   done?: boolean;
   due: string;
+  /** Fecha limite sin formatear (YYYY-MM-DD), para ordenar y saber que vence hoy. */
+  dueAt?: string;
   prio: Priority;
   proj: string;
   owner: OwnerId;
