@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import { PricingCalculadora } from "@/components/pricing/calculadora";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function PricingDetailPage({ params }: Props) {
-  const isNew = params.id === "nueva";
+  // Next 16: params es una Promise (ver crm/[id]/page.tsx).
+  const { id } = await params;
+  const isNew = id === "nueva";
   const supabase = await createClient();
 
   let calculo = null;
@@ -15,7 +17,7 @@ export default async function PricingDetailPage({ params }: Props) {
     const { data } = await supabase
       .from("pricing_calculos")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
     if (!data) notFound();
     calculo = data;

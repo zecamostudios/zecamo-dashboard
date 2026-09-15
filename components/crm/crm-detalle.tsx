@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Phone, Mail, MessageSquare, FileText, Video, Trash2, PhoneCall, CalendarClock } from "lucide-react";
 import type { Prospecto, InteraccionProspecto } from "@/types/database";
+import { emptyToNull } from "@/lib/forms/empty-to-null";
 
 const prospectoSchema = z.object({
   negocio: z.string().min(1, "Requerido"),
@@ -109,8 +110,8 @@ export function CrmDetalle({ prospecto, interacciones, profiles, userId }: Props
       telefono: data.telefono ?? null,
       email: data.email ?? null,
       fuente: data.fuente ?? null,
-      fecha_contacto: data.fecha_contacto ?? null,
-      volver_a_llamar: data.volver_a_llamar ?? null,
+      fecha_contacto: emptyToNull(data.fecha_contacto),
+      volver_a_llamar: emptyToNull(data.volver_a_llamar),
       estado: data.estado,
       notas: data.notas ?? null,
       notas_llamadas: data.notas_llamadas ?? null,

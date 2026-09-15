@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import type { Proyecto } from "@/types/database";
+import { emptyToNull } from "@/lib/forms/empty-to-null";
 
 const proyectoSchema = z.object({
   nombre: z.string().min(1, "Requerido"),
@@ -94,8 +95,8 @@ export default function ProyectoDetallePage() {
         nombre: data.nombre,
         descripcion: data.descripcion ?? null,
         estado: data.estado,
-        fecha_inicio: data.fecha_inicio ?? null,
-        fecha_entrega: data.fecha_entrega ?? null,
+        fecha_inicio: emptyToNull(data.fecha_inicio),
+        fecha_entrega: emptyToNull(data.fecha_entrega),
         precio_total_usd: data.precio_total_usd ?? null,
         horas_estimadas: data.horas_estimadas ?? null,
         horas_reales: data.horas_reales ?? 0,
@@ -107,8 +108,8 @@ export default function ProyectoDetallePage() {
         nombre: data.nombre,
         descripcion: data.descripcion ?? null,
         estado: data.estado,
-        fecha_inicio: data.fecha_inicio ?? null,
-        fecha_entrega: data.fecha_entrega ?? null,
+        fecha_inicio: emptyToNull(data.fecha_inicio),
+        fecha_entrega: emptyToNull(data.fecha_entrega),
         precio_total_usd: data.precio_total_usd ?? null,
         horas_estimadas: data.horas_estimadas ?? null,
         horas_reales: data.horas_reales ?? 0,

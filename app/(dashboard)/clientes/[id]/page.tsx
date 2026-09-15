@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Trash2, Building2, Lightbulb, Wrench } from "lucide-react";
 import type { Cliente, Proyecto, Transaccion } from "@/types/database";
+import { emptyToNull } from "@/lib/forms/empty-to-null";
 
 const clienteSchema = z.object({
   nombre: z.string().min(1, "Requerido"),
@@ -104,7 +105,7 @@ export default function ClienteDetallePage() {
       contacto_nombre: data.contacto_nombre ?? null,
       contacto_email: data.contacto_email ?? null,
       contacto_tel: data.contacto_tel ?? null,
-      fecha_inicio: data.fecha_inicio ?? null,
+      fecha_inicio: emptyToNull(data.fecha_inicio),
       mrr_usd: data.mrr_usd ?? 0,
       estado: data.estado,
       notas: data.notas ?? null,

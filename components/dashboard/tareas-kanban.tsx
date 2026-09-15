@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Calendar, Trash2 } from "lucide-react";
 import type { Tarea } from "@/types/database";
+import { emptyToNull } from "@/lib/forms/empty-to-null";
 
 const tareaSchema = z.object({
   titulo: z.string().min(1, "Requerido"),
@@ -86,7 +87,7 @@ export function TareasKanban({ tareas, profiles, proyectos, userId }: Props) {
         asignado_a: data.asignado_a ?? null,
         prioridad: data.prioridad,
         estado: data.estado,
-        fecha_limite: data.fecha_limite ?? null,
+        fecha_limite: emptyToNull(data.fecha_limite),
         proyecto_id: data.proyecto_id ?? null,
         updated_at: new Date().toISOString(),
       }).eq("id", editTarea.id));
@@ -97,7 +98,7 @@ export function TareasKanban({ tareas, profiles, proyectos, userId }: Props) {
         asignado_a: data.asignado_a ?? null,
         prioridad: data.prioridad,
         estado: data.estado,
-        fecha_limite: data.fecha_limite ?? null,
+        fecha_limite: emptyToNull(data.fecha_limite),
         proyecto_id: data.proyecto_id ?? null,
         creado_por: userId,
       }));

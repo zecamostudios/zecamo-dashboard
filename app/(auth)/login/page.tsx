@@ -1,14 +1,17 @@
 import { loginAction, magicLinkAction } from "./actions";
 
 interface Props {
-  searchParams: { error?: string; magic?: string };
+  searchParams: Promise<{ error?: string; magic?: string }>;
 }
 
 const INPUT = "w-full rounded-xl bg-white/[0.04] border border-[rgba(255,255,255,0.08)] text-[13.5px] px-3.5 py-3 text-[#F4F6FB] placeholder:text-[#5B6588] outline-none focus:border-[rgba(43,91,255,0.5)] focus:shadow-[0_0_0_3px_rgba(43,91,255,0.12)] transition-all";
 
-export default function LoginPage({ searchParams }: Props) {
-  const error = searchParams.error ? decodeURIComponent(searchParams.error) : null;
-  const magicSent = searchParams.magic === "1";
+export default async function LoginPage({ searchParams }: Props) {
+  // Next 16: searchParams es una Promise. Sin await, los mensajes de error del
+  // login nunca se mostraban.
+  const sp = await searchParams;
+  const error = sp.error ? decodeURIComponent(sp.error) : null;
+  const magicSent = sp.magic === "1";
 
   return (
     <div className="w-full max-w-[400px] mx-auto px-4">
